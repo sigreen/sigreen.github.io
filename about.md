@@ -3,8 +3,7 @@ layout: page
 title: About
 permalink: /about/
 ---
-*Polar Bear* is a lightweight and customisable Jekyll Theme.
+I'm a system integration guy working at Red Hat, who wants to share integration patterns I've used in the real-world.
 
 * Author: Simon Green
 * Github: http://github.com/sigreen
-* Portfolio: http://sigreen.github.io

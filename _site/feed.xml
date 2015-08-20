@@ -6,154 +6,82 @@
 </description>
     <link>http://sigreen.github.io/</link>
     <atom:link href="http://sigreen.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Tue, 11 Aug 2015 18:26:13 -0400</pubDate>
-    <lastBuildDate>Tue, 11 Aug 2015 18:26:13 -0400</lastBuildDate>
+    <pubDate>Thu, 20 Aug 2015 14:15:44 -0400</pubDate>
+    <lastBuildDate>Thu, 20 Aug 2015 14:15:44 -0400</lastBuildDate>
     <generator>Jekyll v2.4.0</generator>
     
       <item>
-        <title>“My First Post”</title>
-        <description>&lt;p&gt;Hi, this is my first blog post with nothing very interesting to say.  This is a sample of some bullet points for you:&lt;/p&gt;
+        <title>Managed File Transfer (MFT) the RESTFul way</title>
+        <description>&lt;p&gt;Managed File Transfer (MFT) is something proprietary Enterprise Application Integration (EAI) suites have been tackling for years. Instead of the usual data 
+transformation and business process automation tasks, these applications have done an amazing job at transporting and routing large files between you and your 
+trading partners. The typical use case I&amp;#39;m talking about would be:&lt;/p&gt;
 
 &lt;ul&gt;
-&lt;li&gt;one&lt;/li&gt;
-&lt;li&gt;two&lt;/li&gt;
-&lt;li&gt;three&lt;/li&gt;
+&lt;li&gt;I&amp;#39;m a bank that needs to receive check images, ACH files, payroll and securely receive EDI AP files sent by my corporate customers&lt;/li&gt;
+&lt;li&gt;My file size ranges from 100K to 100MB&lt;/li&gt;
+&lt;li&gt;Typical daily volumes are 1000 - 100,000 files&lt;/li&gt;
+&lt;li&gt;Files must be exchanged over the internet using SFTP, FTPS or HTTPS&lt;/li&gt;
+&lt;li&gt;I want a simple, consistent interface that any trading partner can use.&lt;/li&gt;
 &lt;/ul&gt;
-</description>
-        <pubDate>Tue, 11 Aug 2015 00:00:00 -0400</pubDate>
-        <link>http://sigreen.github.io/2015/08/11/hello.html</link>
-        <guid isPermaLink="true">http://sigreen.github.io/2015/08/11/hello.html</guid>
-        
-        
-      </item>
-    
-      <item>
-        <title>Formatting Samples</title>
-        <description>&lt;p&gt;Polar Bear supports GFM!
-The following text has been taken from &lt;a href=&quot;https://github.com/adam-p/markdown-here/wiki/Markdown-Here-Cheatsheet&quot;&gt;this page&lt;/a&gt;.&lt;/p&gt;
 
-&lt;h1&gt;H1&lt;/h1&gt;
-
-&lt;h2&gt;H2&lt;/h2&gt;
-
-&lt;h3&gt;H3&lt;/h3&gt;
-
-&lt;h4&gt;H4&lt;/h4&gt;
-
-&lt;h5&gt;H5&lt;/h5&gt;
-
-&lt;h6&gt;H6&lt;/h6&gt;
-
-&lt;p&gt;Emphasis, aka italics, with &lt;em&gt;asterisks&lt;/em&gt; or &lt;em&gt;underscores&lt;/em&gt;.&lt;/p&gt;
-
-&lt;p&gt;Strong emphasis, aka bold, with &lt;strong&gt;asterisks&lt;/strong&gt; or &lt;strong&gt;underscores&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;p&gt;Combined emphasis with &lt;strong&gt;asterisks and &lt;em&gt;underscores&lt;/em&gt;&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;p&gt;Strikethrough uses two tildes. &lt;del&gt;Scratch this.&lt;/del&gt;&lt;/p&gt;
+&lt;p&gt;Sounds simple right? WRONG!! We also need to consider:&lt;/p&gt;
 
 &lt;ol&gt;
-&lt;li&gt;First ordered list item&lt;/li&gt;
-&lt;li&gt;Another item
-
-&lt;ul&gt;
-&lt;li&gt;Unordered sub-list. &lt;/li&gt;
-&lt;/ul&gt;&lt;/li&gt;
-&lt;li&gt;Actual numbers don&amp;#39;t matter, just that it&amp;#39;s a number
-
-&lt;ol&gt;
-&lt;li&gt;Ordered sub-list&lt;/li&gt;
-&lt;/ol&gt;&lt;/li&gt;
-&lt;li&gt;And another item.&lt;br&gt;&lt;/li&gt;
+&lt;li&gt;PKI. Issuing and revoking certificates is something managed by an external system but must integrate with your MFT solution&lt;/li&gt;
+&lt;li&gt;Authorization. Typically an LDAP server is used to manage trading partner account credentials&lt;/li&gt;
+&lt;li&gt;Integrity. The integrity of the file needs to be guaranteed from point-to-point&lt;/li&gt;
+&lt;li&gt;Virus scanning. It&amp;#39;s inevitable hackers will try to upload viruses to your new MFT solution and infiltrate your beloved trusted zone.&lt;/li&gt;
+&lt;li&gt;Routing. Files need to be routed to their end destination using either filename-based, content-based routing or a combination of both&lt;/li&gt;
+&lt;li&gt;Secure Proxy. It&amp;#39;s important to prevent a direct connection into systems installed in your trusted zone. Therefore, a session-break mechanism needs to be considered in your solution.&lt;/li&gt;
 &lt;/ol&gt;
 
-&lt;p&gt;Some text that should be aligned with the above item.&lt;/p&gt;
+&lt;p&gt;Here is what the typical MFT architecture looks like using your legacy EAI suite:&lt;/p&gt;
 
-&lt;ul&gt;
-&lt;li&gt;Unordered list can use asterisks&lt;/li&gt;
-&lt;li&gt;Or minuses&lt;/li&gt;
-&lt;li&gt;Or pluses&lt;/li&gt;
-&lt;/ul&gt;
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/sigreen/sigreen.github.io/master/images/eai_secureProxy.png&quot; alt=&quot;EAI MFT Architecture&quot;&gt;&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;https://www.google.com&quot;&gt;I&amp;#39;m an inline-style link&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;There is NOTHING wrong with the above architecture. It is proven technology which has endured 20 years of exchanging large files without issue. So what happens if we
+want a technology refresh, remove our proprietary software and use something more open-source like Fuse/Fabric/A-MQ? Well, we don&amp;#39;t really need to change all that much
+in terms of architecture. In fact, the architecture looks surprisingly similar:&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;https://www.mozilla.org&quot;&gt;I&amp;#39;m a reference-style link&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/sigreen/sigreen.github.io/master/images/fuse_secureProxy.png&quot; alt=&quot;Fuse MFT Architecture&quot;&gt;&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;http://slashdot.org&quot;&gt;You can use numbers for reference-style link definitions&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;What I did was:&lt;/p&gt;
 
-&lt;p&gt;Or leave it empty and use the &lt;a href=&quot;http://www.reddit.com&quot;&gt;link text itself&lt;/a&gt;&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;In the DMZ, swap the Secure Proxy for an instance of Fuse. This instance can take care of receiving files over FTPS / SFTP / HTTPS whilst maintaining a session break
+from the Trusted Zone.&lt;/li&gt;
+&lt;li&gt;In the Trusted Zone, replace the EAI suite with an instance of Fuse and A-MQ broker. Fuse can take care of the file routing to backend systems, plus additional user
+authentication if required. The A-MQ broker is used to safestore the file received from the DMZ once it&amp;#39;s passed all the safety checks conducted by the outer layer Fuse
+instance (integrity, authorization, virus checking etc).&lt;/li&gt;
+&lt;/ol&gt;
 
-&lt;p&gt;Some text to show that the reference links can follow later.&lt;/p&gt;
+&lt;p&gt;So what about the RESTFul bit? Our friends in the retail industry have been using specifications like AS2 and AS3 to securely transfer files over the internet for decades.
+Although these specs are secure and provide a valuable mechanism for (a)synchronous file exchange (with receipts), they are often overly complex and difficult for 
+Trading Partners to implement on the client side. A better technique I&amp;#39;ve used is to exchange RESTFul messages over HTTPS. The raw payload body is inserted into the 
+HTTP body, while metadata ends up in the HTTP headers (like digital signature, sender, receiver, destination etc).&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;POST /cxf/file HTTP/1.1
+Host: localhost
+Connection: keep-alive
+fileName: README.md
+digitalSignature: 66eU13rZivthyv0lfydneg==
+destination: ACH
+Content-Type: text/plain
+Content-Length: 2026
+Host: localhost:8183
+User-Agent: Apache-HttpClient/4.2.6 (java 1.5)
 
-&lt;p&gt;Inline &lt;code&gt;code&lt;/code&gt; has &lt;code&gt;back-ticks around&lt;/code&gt; it.&lt;/p&gt;
-&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;s&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;JavaScript syntax highlighting&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;nx&quot;&gt;alert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;Python syntax highlighting&amp;quot;&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;No language indicated, so no syntax highlighting. 
-But let&amp;#39;s throw in a &amp;lt;b&amp;gt;tag&amp;lt;/b&amp;gt;.
+My body goes here
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;Colons can be used to align columns.&lt;/p&gt;
+&lt;p&gt;To ensure file integrity, I exchange a shared secret with my Trading Partners. This secret is hashed together with the HTTP body using the HMAC-SHA256 algorithm, then base64 encoded to give us a 16-bit digital signature. That way, if someone messes with the file between point A and B, we&amp;#39;ll know about it.&lt;/p&gt;
 
-&lt;table&gt;&lt;thead&gt;
-&lt;tr&gt;
-&lt;th&gt;Tables&lt;/th&gt;
-&lt;th style=&quot;text-align: center&quot;&gt;Are&lt;/th&gt;
-&lt;th style=&quot;text-align: right&quot;&gt;Cool&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td&gt;col 3 is&lt;/td&gt;
-&lt;td style=&quot;text-align: center&quot;&gt;right-aligned&lt;/td&gt;
-&lt;td style=&quot;text-align: right&quot;&gt;$1600&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;col 2 is&lt;/td&gt;
-&lt;td style=&quot;text-align: center&quot;&gt;centered&lt;/td&gt;
-&lt;td style=&quot;text-align: right&quot;&gt;$12&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;zebra stripes&lt;/td&gt;
-&lt;td style=&quot;text-align: center&quot;&gt;are neat&lt;/td&gt;
-&lt;td style=&quot;text-align: right&quot;&gt;$1&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
+&lt;p&gt;Authorization, authentication and encryption can be taken care of securely using PKI and SSL provided you have a PKI in place to manage this.&lt;/p&gt;
 
-&lt;p&gt;The outer pipes (|) are optional, and you don&amp;#39;t need to make the raw Markdown line up prettily. You can also use inline Markdown.&lt;/p&gt;
-
-&lt;table&gt;&lt;thead&gt;
-&lt;tr&gt;
-&lt;th&gt;Markdown&lt;/th&gt;
-&lt;th&gt;Less&lt;/th&gt;
-&lt;th&gt;Pretty&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;em&gt;Still&lt;/em&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;renders&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;&lt;strong&gt;nicely&lt;/strong&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;1&lt;/td&gt;
-&lt;td&gt;2&lt;/td&gt;
-&lt;td&gt;3&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-
-&lt;blockquote&gt;
-&lt;p&gt;Blockquotes are very handy in email to emulate reply text.
-This line is part of the same quote.&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Quote break.&lt;/p&gt;
-
-&lt;blockquote&gt;
-&lt;p&gt;This is a very long line that will still be quoted properly when it wraps. Oh boy let&amp;#39;s keep writing to make sure this is long enough to actually wrap for everyone. Oh, you can &lt;em&gt;put&lt;/em&gt; &lt;strong&gt;Markdown&lt;/strong&gt; into a blockquote. &lt;/p&gt;
-&lt;/blockquote&gt;
+&lt;p&gt;Now for the fun part! I&amp;#39;ve created a demo project for you to try which demonstrates the exchange of large files using this technique. Check it out &lt;a href=&quot;https://github.com/sigreen/rest-mft-osgi&quot;&gt;here&lt;/a&gt; and 
+let me know what you think.&lt;/p&gt;
 </description>
-        <pubDate>Mon, 25 May 2015 00:00:00 -0400</pubDate>
-        <link>http://sigreen.github.io/2015/05/25/formatting-samples.html</link>
-        <guid isPermaLink="true">http://sigreen.github.io/2015/05/25/formatting-samples.html</guid>
+        <pubDate>Thu, 20 Aug 2015 00:00:00 -0400</pubDate>
+        <link>http://sigreen.github.io/2015/08/20/rest-mft.html</link>
+        <guid isPermaLink="true">http://sigreen.github.io/2015/08/20/rest-mft.html</guid>
         
         
       </item>

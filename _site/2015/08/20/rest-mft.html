@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Managed File Transfer (MFT) the RESTFul way</title>
+  <meta name="description" content="Managed File Transfer (MFT) is something proprietary Enterprise Application Integration (EAI) suites have been tackling for years. Instead of the usual data ...">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="http://sigreen.github.io/2015/08/20/rest-mft.html">
+  <link rel="alternate" type="application/rss+xml" title="Simon’s Blog" href="http://sigreen.github.io/feed.xml" />
+
+  <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+  <link href='//fonts.googleapis.com/css?family=PT+Sans:400,700' rel='stylesheet' type='text/css'>
+  <link href='//fonts.googleapis.com/css?family=Open+Sans:300,700' rel='stylesheet' type='text/css'>
+</head>
+
+
+  <body>
+
+    <div class="site-header">
+
+    <nav class="site-nav">
+        
+          
+          <a class="page-link" href="/about/">About</a>
+          
+        
+          
+        
+          
+        
+          
+        
+    </nav>
+
+    <h1>
+     <span>
+      <a class="site-title" href="/">Simon’s Blog</a>
+     </span>
+    </h1>
+
+
+</div>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+     <h1 class="post-title">Managed File Transfer (MFT) the RESTFul way</h1>
+     <p class="post-meta">Posted on Aug 20, 2015</p>
+  </header>
+
+  <article class="post-content">
+    <p>Managed File Transfer (MFT) is something proprietary Enterprise Application Integration (EAI) suites have been tackling for years. Instead of the usual data 
+transformation and business process automation tasks, these applications have done an amazing job at transporting and routing large files between you and your 
+trading partners. The typical use case I&#39;m talking about would be:</p>
+
+<ul>
+<li>I&#39;m a bank that needs to receive check images, ACH files, payroll and securely receive EDI AP files sent by my corporate customers</li>
+<li>My file size ranges from 100K to 100MB</li>
+<li>Typical daily volumes are 1000 - 100,000 files</li>
+<li>Files must be exchanged over the internet using SFTP, FTPS or HTTPS</li>
+<li>I want a simple, consistent interface that any trading partner can use.</li>
+</ul>
+
+<p>Sounds simple right? WRONG!! We also need to consider:</p>
+
+<ol>
+<li>PKI. Issuing and revoking certificates is something managed by an external system but must integrate with your MFT solution</li>
+<li>Authorization. Typically an LDAP server is used to manage trading partner account credentials</li>
+<li>Integrity. The integrity of the file needs to be guaranteed from point-to-point</li>
+<li>Virus scanning. It&#39;s inevitable hackers will try to upload viruses to your new MFT solution and infiltrate your beloved trusted zone.</li>
+<li>Routing. Files need to be routed to their end destination using either filename-based, content-based routing or a combination of both</li>
+<li>Secure Proxy. It&#39;s important to prevent a direct connection into systems installed in your trusted zone. Therefore, a session-break mechanism needs to be considered in your solution.</li>
+</ol>
+
+<p>Here is what the typical MFT architecture looks like using your legacy EAI suite:</p>
+
+<p><img src="https://raw.githubusercontent.com/sigreen/sigreen.github.io/master/images/eai_secureProxy.png" alt="EAI MFT Architecture"></p>
+
+<p>There is NOTHING wrong with the above architecture. It is proven technology which has endured 20 years of exchanging large files without issue. So what happens if we
+want a technology refresh, remove our proprietary software and use something more open-source like Fuse/Fabric/A-MQ? Well, we don&#39;t really need to change all that much
+in terms of architecture. In fact, the architecture looks surprisingly similar:</p>
+
+<p><img src="https://raw.githubusercontent.com/sigreen/sigreen.github.io/master/images/fuse_secureProxy.png" alt="Fuse MFT Architecture"></p>
+
+<p>What I did was:</p>
+
+<ol>
+<li>In the DMZ, swap the Secure Proxy for an instance of Fuse. This instance can take care of receiving files over FTPS / SFTP / HTTPS whilst maintaining a session break
+from the Trusted Zone.</li>
+<li>In the Trusted Zone, replace the EAI suite with an instance of Fuse and A-MQ broker. Fuse can take care of the file routing to backend systems, plus additional user
+authentication if required. The A-MQ broker is used to safestore the file received from the DMZ once it&#39;s passed all the safety checks conducted by the outer layer Fuse
+instance (integrity, authorization, virus checking etc).</li>
+</ol>
+
+<p>So what about the RESTFul bit? Our friends in the retail industry have been using specifications like AS2 and AS3 to securely transfer files over the internet for decades.
+Although these specs are secure and provide a valuable mechanism for (a)synchronous file exchange (with receipts), they are often overly complex and difficult for 
+Trading Partners to implement on the client side. A better technique I&#39;ve used is to exchange RESTFul messages over HTTPS. The raw payload body is inserted into the 
+HTTP body, while metadata ends up in the HTTP headers (like digital signature, sender, receiver, destination etc).</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">POST /cxf/file HTTP/1.1
+Host: localhost
+Connection: keep-alive
+fileName: README.md
+digitalSignature: 66eU13rZivthyv0lfydneg==
+destination: ACH
+Content-Type: text/plain
+Content-Length: 2026
+Host: localhost:8183
+User-Agent: Apache-HttpClient/4.2.6 (java 1.5)
+
+My body goes here
+</code></pre></div>
+<p>To ensure file integrity, I exchange a shared secret with my Trading Partners. This secret is hashed together with the HTTP body using the HMAC-SHA256 algorithm, then base64 encoded to give us a 16-bit digital signature. That way, if someone messes with the file between point A and B, we&#39;ll know about it.</p>
+
+<p>Authorization, authentication and encryption can be taken care of securely using PKI and SSL provided you have a PKI in place to manage this.</p>
+
+<p>Now for the fun part! I&#39;ve created a demo project for you to try which demonstrates the exchange of large files using this technique. Check it out <a href="https://github.com/sigreen/rest-mft-osgi">here</a> and 
+let me know what you think.</p>
+
+  </article>
+
+  <div align="center">
+  	<a href="#">
+  	<i class="fa fa-arrow-circle-up fa-2x"></i>
+  	</a>
+  </div>
+
+</div>
+      </div>
+      <div class="wrapper">
+        
+<!-- Add Disqus comments. -->
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'sigreen'; // required: replace example with your forum shortname
+  var disqus_identifier = "/2015/08/20/rest-mft.html";
+
+  /* * * DON'T EDIT BELOW THIS LINE * * */
+  (function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+      </div>
+    </div>
+
+    <div class="footer" align="center">
+
+  Designed by <a href=http://diezcami.github.io target="_blank">Camille Diez</a><BR />
+  Powered by <a href=http://jekyllrb.com target="_blank">Jekyll</a>
+
+</div>
+
+
+  </body>
+
+</html>
