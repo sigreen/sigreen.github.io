@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Creating a two-way SSL SOAP client using Apache Camel CXF</title>
+  <meta name="description" content="Two-way SSL is something that has always been a little tricky to configure and manage.  Creating a truststore and keystore and working out which certificates...">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="http://sigreen.github.io/2015/11/10/soap-cxf.html">
+  <link rel="alternate" type="application/rss+xml" title="Simon’s Blog" href="http://sigreen.github.io/feed.xml" />
+
+  <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+  <link href='//fonts.googleapis.com/css?family=PT+Sans:400,700' rel='stylesheet' type='text/css'>
+  <link href='//fonts.googleapis.com/css?family=Open+Sans:300,700' rel='stylesheet' type='text/css'>
+</head>
+
+
+  <body>
+
+    <div class="site-header">
+
+    <nav class="site-nav">
+        
+          
+          <a class="page-link" href="/about/">About</a>
+          
+        
+          
+        
+          
+        
+          
+        
+    </nav>
+
+    <h1>
+     <span>
+      <a class="site-title" href="/">Simon’s Blog</a>
+     </span>
+    </h1>
+
+
+</div>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+     <h1 class="post-title">Creating a two-way SSL SOAP client using Apache Camel CXF</h1>
+     <p class="post-meta">Posted on Nov 10, 2015</p>
+  </header>
+
+  <article class="post-content">
+    <p>Two-way SSL is something that has always been a little tricky to configure and manage.  Creating a truststore and keystore and working out which certificates go where confuses things. And by adding a SOAP layer on top and battling with CXF further complicates the task.  I recently embarked on this activity for a customer and was shocked to learn how badly documented this was on the web.  It seems few people have attempted this so I thought it was my time to contribute a little and create a sample project.</p>
+
+<p>My sample project is <a href="https://github.com/sigreen/camel-cxf-soap-client">here</a>.  Key points I learnt were:</p>
+
+<ul>
+<li>It’s better to develop with CXF system logging switched on so you can see your request / reply SOAP messages.  In your camel_context.xml, just set the following:</li>
+</ul>
+<div class="highlight"><pre><code class="language-text" data-lang="text">&lt;!-- The interceptors bean definitions - used for logging SOAP requests. --&gt;
+&lt;!-- They can be removed, when no logging is needed --&gt;
+&lt;bean id=&quot;abstractLoggingInterceptor&quot; abstract=&quot;true&quot;&gt;
+    &lt;property name=&quot;prettyLogging&quot; value=&quot;true&quot; /&gt;
+&lt;/bean&gt;
+&lt;bean id=&quot;loggingInInterceptor&quot; class=&quot;org.apache.cxf.interceptor.LoggingInInterceptor&quot; parent=&quot;abstractLoggingInterceptor&quot; /&gt;
+&lt;bean id=&quot;loggingOutInterceptor&quot; class=&quot;org.apache.cxf.interceptor.LoggingOutInterceptor&quot; parent=&quot;abstractLoggingInterceptor&quot; /&gt;
+</code></pre></div>
+<ul>
+<li>SOAP UI is your friend.  Use the Mock test service to act as a sample SOAP server while you develop.</li>
+<li>I prefer developing “contract first” i.e. using a WSDL contract clearly defining each service request/reply.  I used the handy wsdl2java cxf-codegen Maven plugin to generate my objects from the WSDL contract</li>
+<li>Namespaces are confusing in CXF.  Rather than set the namespace on the CXF endpoint element, I found it clearer to embed the namespace name into the port / service name properties e.g. <code>{http\://www.webserviceX.NET/}CurrencyConvertorSoap</code></li>
+</ul>
+
+<p>And that’s it.  I was able to run the sample project within a local Camel Context, and once I was happy with the result, use the project as a template for developing something more specific for my customer.</p>
+
+  </article>
+
+  <div align="center">
+  	<a href="#">
+  	<i class="fa fa-arrow-circle-up fa-2x"></i>
+  	</a>
+  </div>
+
+</div>
+      </div>
+      <div class="wrapper">
+        
+<!-- Add Disqus comments. -->
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'sigreen'; // required: replace example with your forum shortname
+  var disqus_identifier = "/2015/11/10/soap-cxf.html";
+
+  /* * * DON'T EDIT BELOW THIS LINE * * */
+  (function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+      </div>
+    </div>
+
+    <div class="footer" align="center">
+
+  Designed by <a href=http://diezcami.github.io target="_blank">Camille Diez</a><BR />
+  Powered by <a href=http://jekyllrb.com target="_blank">Jekyll</a>
+
+</div>
+
+
+  </body>
+
+</html>

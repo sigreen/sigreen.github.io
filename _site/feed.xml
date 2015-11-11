@@ -6,9 +6,41 @@
 </description>
     <link>http://sigreen.github.io/</link>
     <atom:link href="http://sigreen.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 20 Aug 2015 14:26:03 -0400</pubDate>
-    <lastBuildDate>Thu, 20 Aug 2015 14:26:03 -0400</lastBuildDate>
+    <pubDate>Wed, 11 Nov 2015 08:13:15 -0500</pubDate>
+    <lastBuildDate>Wed, 11 Nov 2015 08:13:15 -0500</lastBuildDate>
     <generator>Jekyll v2.4.0</generator>
+    
+      <item>
+        <title>Creating a two-way SSL SOAP client using Apache Camel CXF</title>
+        <description>&lt;p&gt;Two-way SSL is something that has always been a little tricky to configure and manage.  Creating a truststore and keystore and working out which certificates go where confuses things. And by adding a SOAP layer on top and battling with CXF further complicates the task.  I recently embarked on this activity for a customer and was shocked to learn how badly documented this was on the web.  It seems few people have attempted this so I thought it was my time to contribute a little and create a sample project.&lt;/p&gt;
+
+&lt;p&gt;My sample project is &lt;a href=&quot;https://github.com/sigreen/camel-cxf-soap-client&quot;&gt;here&lt;/a&gt;.  Key points I learnt were:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;It’s better to develop with CXF system logging switched on so you can see your request / reply SOAP messages.  In your camel_context.xml, just set the following:&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&amp;lt;!-- The interceptors bean definitions - used for logging SOAP requests. --&amp;gt;
+&amp;lt;!-- They can be removed, when no logging is needed --&amp;gt;
+&amp;lt;bean id=&amp;quot;abstractLoggingInterceptor&amp;quot; abstract=&amp;quot;true&amp;quot;&amp;gt;
+    &amp;lt;property name=&amp;quot;prettyLogging&amp;quot; value=&amp;quot;true&amp;quot; /&amp;gt;
+&amp;lt;/bean&amp;gt;
+&amp;lt;bean id=&amp;quot;loggingInInterceptor&amp;quot; class=&amp;quot;org.apache.cxf.interceptor.LoggingInInterceptor&amp;quot; parent=&amp;quot;abstractLoggingInterceptor&amp;quot; /&amp;gt;
+&amp;lt;bean id=&amp;quot;loggingOutInterceptor&amp;quot; class=&amp;quot;org.apache.cxf.interceptor.LoggingOutInterceptor&amp;quot; parent=&amp;quot;abstractLoggingInterceptor&amp;quot; /&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;SOAP UI is your friend.  Use the Mock test service to act as a sample SOAP server while you develop.&lt;/li&gt;
+&lt;li&gt;I prefer developing “contract first” i.e. using a WSDL contract clearly defining each service request/reply.  I used the handy wsdl2java cxf-codegen Maven plugin to generate my objects from the WSDL contract&lt;/li&gt;
+&lt;li&gt;Namespaces are confusing in CXF.  Rather than set the namespace on the CXF endpoint element, I found it clearer to embed the namespace name into the port / service name properties e.g. &lt;code&gt;{http\://www.webserviceX.NET/}CurrencyConvertorSoap&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;And that’s it.  I was able to run the sample project within a local Camel Context, and once I was happy with the result, use the project as a template for developing something more specific for my customer.&lt;/p&gt;
+</description>
+        <pubDate>Tue, 10 Nov 2015 00:00:00 -0500</pubDate>
+        <link>http://sigreen.github.io/2015/11/10/soap-cxf.html</link>
+        <guid isPermaLink="true">http://sigreen.github.io/2015/11/10/soap-cxf.html</guid>
+        
+        
+      </item>
     
       <item>
         <title>Managed File Transfer (MFT) the RESTFul way</title>
