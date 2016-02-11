@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>JBoss A-MQ 6.2 Performance Tuning Adventures</title>
+  <meta name="description" content="2008 was the last time I embarked on a similar exercise, so I was a little rusty at tuning high-performance applications. But it was refreshing to revisit th...">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="http://sigreen.github.io/2016/02/10/amq-tuning.html">
+  <link rel="alternate" type="application/rss+xml" title="Simon’s Blog" href="http://sigreen.github.io/feed.xml" />
+
+  <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+  <link href='//fonts.googleapis.com/css?family=PT+Sans:400,700' rel='stylesheet' type='text/css'>
+  <link href='//fonts.googleapis.com/css?family=Open+Sans:300,700' rel='stylesheet' type='text/css'>
+</head>
+
+
+  <body>
+
+    <div class="site-header">
+
+    <nav class="site-nav">
+        
+          
+          <a class="page-link" href="/about/">About</a>
+          
+        
+          
+        
+          
+        
+          
+        
+    </nav>
+
+    <h1>
+     <span>
+      <a class="site-title" href="/">Simon’s Blog</a>
+     </span>
+    </h1>
+
+
+</div>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+     <h1 class="post-title">JBoss A-MQ 6.2 Performance Tuning Adventures</h1>
+     <p class="post-meta">Posted on Feb 10, 2016</p>
+  </header>
+
+  <article class="post-content">
+    <p>2008 was the last time I embarked on a similar exercise, so I was a little rusty at tuning high-performance applications. But it was refreshing to revisit the process again with JBoss A-MQ.  I recently had a customer who presented a performance issue with an unusual use case: &quot;Publish only to a composite topic (forwarding from topics to queues) with no subscribers, no use of transactions and must have JMS durability“.  I quizzed the customer whether this was a valid real-word use case and they assured me it was.  They explained they have many applications publishing notification messages to topics which may (or may not) have any subscribers, and it was likely the topic could get backed up with millions of messages at a time.  Their initial performance benchmark looked like this:</p>
+
+<h4><center>Pub only versus Pub/Sub, zero tuning, persistence, 13M messages<center></h4>
+
+<table><thead>
+<tr>
+<th>Test</th>
+<th>Result</th>
+</tr>
+</thead><tbody>
+<tr>
+<td>Pub only</td>
+<td>1276 msgs/sec</td>
+</tr>
+<tr>
+<td>Pub / Sub</td>
+<td>8832 msgs/sec</td>
+</tr>
+</tbody></table>
+
+<p>Pathetic and embarrassing to say the least.  But hey - zero tuning so you can&#39;t really expect much right?  The first question we raised was let&#39;s take a look at your hardware:</p>
+
+<h4><center>Test Broker VM Specification</center></h4>
+
+<table><thead>
+<tr>
+<th>Item</th>
+<th>Value</th>
+</tr>
+</thead><tbody>
+<tr>
+<td>OS</td>
+<td>RHEL 7.1</td>
+</tr>
+<tr>
+<td>Architecture</td>
+<td>amd64</td>
+</tr>
+<tr>
+<td>Processors</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Memory</td>
+<td>8GB</td>
+</tr>
+<tr>
+<td>JVM</td>
+<td>Oracle 64bit 1.7.0_09</td>
+</tr>
+</tbody></table>
+
+<p>Not too shabby in terms of test machine, so what about storage:</p>
+
+<h4><center>Test Broker Storage</center></h4>
+
+<table><thead>
+<tr>
+<th>Item</th>
+<th>Value</th>
+</tr>
+</thead><tbody>
+<tr>
+<td>Type</td>
+<td>HDS VSP array</td>
+</tr>
+<tr>
+<td>Connectivity</td>
+<td> Fiber attached, 8Gbp/s HBAs &amp; SAN switches </td>
+</tr>
+<tr>
+<td>NFS</td>
+<td>No</td>
+</tr>
+</tbody></table>
+
+<p>Again, no alarm bells yet in terms of test VM and storage.  My colleague, Christian Posta, who published an amazing post on tuning A-MQ <a href="http://blog.christianposta.com/activemq/speeding-up-activemq-persistent-messaging-performance-by-25x/">here</a>, gave us some hints for checking persistent storage, specifically by running the activemq perf-test benchmarking tool.  This was the output it gave:</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">Disk Benchmark:
+Benchmarking: /opt/app/jbossamq/csst/data/amq/kahadb/disk-benchmark.dat
+Writes:
+  1919986 writes of size 4096 written in 10.042 seconds.
+  191195.58 writes/second.
+  746.8577 megs/second.
+
+Sync Writes:
+  24857 writes of size 4096 written in 10.001 seconds.
+  2485.4514 writes/second.
+  9.708795 megs/second.
+
+Reads:
+  8539871 reads of size 4096 read in 10.001 seconds.
+  853901.7 writes/second.
+  3335.5535 megs/second
+</code></pre></div>
+<p>The Disk Writes looked fine at 746 megs/sec.  But as Christian mentioned in his post, the item to watch was the sync writes, which in our case were abysmally slow at 9.7 megs/sec.  Christian&#39;s suggestion was to run disk-benchmark again but increase the block size to 4MB (the default block size of Apache ActiveMQ):</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">Benchmarking: /opt/app/jbossamq/csst/extras/apache-activemq-5.11.0.redhat-62013/disk-benchmark.dat
+Writes:
+  1576 writes of size 4194304 written in 10.251 seconds.
+  153.7411 writes/second.
+  614.9644 megs/second.
+
+Sync Writes:
+  927 writes of size 4194304 written in 10.004 seconds.
+  92.66293 writes/second.
+  370.65173 megs/second.
+
+Reads:
+  3858 reads of size 4194304 read in 10.003 seconds.
+  385.6843 writes/second.
+  1542.7372 megs/second.
+</code></pre></div>
+<p>This time around we saw a massive increase from 9.7 megs/second to 370 megs/second, telling us to be mindful of this when tuning JBoss A-MQ.  We had a smoking gun though: storage.  But how best to proceed?  We decided to momentarily take storage out of the equation and run the tests with zero persistence, using the “memoryPersistenceAdapter” plus publish to queues (and not composite topics).  That way, everything runs in memory and we’re not worrying about disk I/O or storage holding us up.  We tried running the same tests but this time with a 4M message sample.  Unfortunately, the test broker kept bombing out with this ghastly error: </p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">java.lang.OutOfMemoryError: GC overhead limit exceeded
+</code></pre></div>
+<p>A bit of Googling and we soon found out we can fix this by specifying a different Garbage Collector in the bin/setenv file:</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">export JAVA_MIN_MEM=6G # Minimum memory for the JVM
+export JAVA_MAX_MEM=6G # Maximum memory for the JVM
+export KARAF_OPTS=&quot;-XX:+UseConcMarkSweepGC&quot;
+</code></pre></div>
+<p>While we were at it, we noticed the customer had set the JVM min/max heap size to 8G - the total memory size of the VM which certainly wasn’t helping matters.  So we knocked that down to 6G (both min and max) giving the OS a bit of breathing space (2G of memory).  We ran the tests again and this was the new result:</p>
+
+<h4><center>Pub only versus Pub/Sub, No persistence, New memory / GC settings<center></h4>
+
+<table><thead>
+<tr>
+<th>Test</th>
+<th>Result</th>
+</tr>
+</thead><tbody>
+<tr>
+<td>Pub only</td>
+<td>57,743 msgs/sec</td>
+</tr>
+<tr>
+<td>Pub / Sub</td>
+<td>34,198 msgs/sec</td>
+</tr>
+</tbody></table>
+
+<p>Wow! What a MASSIVE difference adjusting the memory, GC and removing storage makes. We’ve opened the flood gates, so now was a good time to add back persistence (kahadb) and re-test.  Instead of going through every modification, here is a summary of tweaks we made to the default persistence store, kahadb (in the activemq.xml file):</p>
+
+<h3><center>Queues, Producer Only, Persistence On</center></h3>
+
+<table><thead>
+<tr>
+<th>Enhancement</th>
+<th>Throughput (msg/sec)</th>
+</tr>
+</thead><tbody>
+<tr>
+<td>UseConcMarkSweepGC</td>
+<td>1,236</td>
+</tr>
+<tr>
+<td>enableJournalDiskSyncs=&quot;true&quot;<br/>preallocationStrategy=&quot;zeros&quot;</td>
+<td>1,424</td>
+</tr>
+<tr>
+<td>preallocationStrategy=&quot;os<em>kernel</em>copy&quot;</td>
+<td>1,456</td>
+</tr>
+<tr>
+<td>preallocationStrategy=&quot;zeros&quot;<br/>concurrentStoreAndDispatchQueues=&quot;false&quot;</td>
+<td>6,056</td>
+</tr>
+<tr>
+<td>enableJournalDiskSyncs=&quot;true&quot;<br/>preallocationStrategy=&quot;zeros&quot;<br/>concurrentStoreAndDispatchQueues=&quot;false&quot;</br>cleanupInterval=&quot;300000&quot;</br>checkpointInterval=&quot;50000&quot;</br>journalMaxWriteBatchSize=&quot;62k&quot;<br/>journalMaxFileLength=&quot;1g&quot;<br/>indexCacheSize=&quot;100000&quot;</td>
+<td>5,688</td>
+</tr>
+<tr>
+<td>enableJournalDiskSyncs=&quot;true&quot;<br/>preallocationStrategy=&quot;zeros&quot;<br/>concurrentStoreAndDispatchQueues=&quot;false&quot;</br>skipMetadataUpdate=true</td>
+<td>7,828</td>
+</tr>
+<tr>
+<td>enableJournalDiskSyncs=&quot;true&quot;<br/>preallocationStrategy=&quot;zeros&quot;<br/>concurrentStoreAndDispatchQueues=&quot;false&quot;<br/>mKahaDb (10 instances, cold database)</td>
+<td>11,936</td>
+</tr>
+<tr>
+<td>enableJournalDiskSyncs=&quot;true&quot;<br/>preallocationStrategy=&quot;zeros&quot;<br/>concurrentStoreAndDispatchQueues=&quot;false&quot;<br/>mKahaDb (10 instances, hot database)</td>
+<td>12,693</td>
+</tr>
+</tbody></table>
+
+<p>A technique suggested to us by Red Hat Engineering was the use of destination sharding using mKahaDB (or multiple kahadb’s).  The idea is to segregate topic / queue destinations into their own kahadb instance make access quicker, which obviously gave us some performance gain.  </p>
+<div class="highlight"><pre><code class="language-text" data-lang="text"> &lt;persistenceAdapter&gt;
+    &lt;mKahaDB directory=&quot;${data}/kahadb&quot;&gt;
+          &lt;filteredPersistenceAdapters&gt;
+            &lt;filteredKahaDB queue=&quot;amqThroughPutTest.1&quot;&gt;
+        &lt;persistenceAdapter&gt;
+            &lt;kahaDB enableJournalDiskSyncs=&quot;true&quot; preallocationStrategy=&quot;zeros&quot; concurrentStoreAndDispatchQueues=&quot;false&quot;/&gt;
+        &lt;/persistenceAdapter&gt;
+       &lt;/filteredKahaDB&gt;
+            &lt;filteredKahaDB queue=&quot;amqThroughPutTest.2&quot;&gt;
+        &lt;persistenceAdapter&gt;
+            &lt;kahaDB enableJournalDiskSyncs=&quot;true&quot; preallocationStrategy=&quot;zeros&quot; concurrentStoreAndDispatchQueues=&quot;false&quot;/&gt;
+        &lt;/persistenceAdapter&gt;
+       &lt;/filteredKahaDB&gt;
+            &lt;filteredKahaDB queue=&quot;amqThroughPutTest.3&quot;&gt;
+        &lt;persistenceAdapter&gt;
+            &lt;kahaDB enableJournalDiskSyncs=&quot;true&quot; preallocationStrategy=&quot;zeros&quot; concurrentStoreAndDispatchQueues=&quot;false&quot;/&gt;
+        &lt;/persistenceAdapter&gt;
+       &lt;/filteredKahaDB&gt;
+            &lt;filteredKahaDB queue=&quot;amqThroughPutTest.4&quot;&gt;
+        &lt;persistenceAdapter&gt;
+            &lt;kahaDB enableJournalDiskSyncs=&quot;true&quot; preallocationStrategy=&quot;zeros&quot; concurrentStoreAndDispatchQueues=&quot;false&quot;/&gt;
+        &lt;/persistenceAdapter&gt;
+       &lt;/filteredKahaDB&gt;
+            &lt;filteredKahaDB queue=&quot;amqThroughPutTest.5&quot;&gt;
+        &lt;persistenceAdapter&gt;
+            &lt;kahaDB enableJournalDiskSyncs=&quot;true&quot; preallocationStrategy=&quot;zeros&quot; concurrentStoreAndDispatchQueues=&quot;false&quot;/&gt;
+        &lt;/persistenceAdapter&gt;
+       &lt;/filteredKahaDB&gt;
+            &lt;filteredKahaDB queue=&quot;amqThroughPutTest.6&quot;&gt;
+        &lt;persistenceAdapter&gt;
+            &lt;kahaDB enableJournalDiskSyncs=&quot;true&quot; preallocationStrategy=&quot;zeros&quot; concurrentStoreAndDispatchQueues=&quot;false&quot;/&gt;
+        &lt;/persistenceAdapter&gt;
+       &lt;/filteredKahaDB&gt;
+            &lt;filteredKahaDB queue=&quot;amqThroughPutTest.7&quot;&gt;
+        &lt;persistenceAdapter&gt;
+            &lt;kahaDB enableJournalDiskSyncs=&quot;true&quot; preallocationStrategy=&quot;zeros&quot; concurrentStoreAndDispatchQueues=&quot;false&quot;/&gt;
+        &lt;/persistenceAdapter&gt;
+       &lt;/filteredKahaDB&gt;
+            &lt;filteredKahaDB queue=&quot;amqThroughPutTest.8&quot;&gt;
+        &lt;persistenceAdapter&gt;
+            &lt;kahaDB enableJournalDiskSyncs=&quot;true&quot; preallocationStrategy=&quot;zeros&quot; concurrentStoreAndDispatchQueues=&quot;false&quot;/&gt;
+        &lt;/persistenceAdapter&gt;
+       &lt;/filteredKahaDB&gt;
+            &lt;filteredKahaDB queue=&quot;amqThroughPutTest.9&quot;&gt;
+        &lt;persistenceAdapter&gt;
+            &lt;kahaDB enableJournalDiskSyncs=&quot;true&quot; preallocationStrategy=&quot;zeros&quot; concurrentStoreAndDispatchQueues=&quot;false&quot;/&gt;
+        &lt;/persistenceAdapter&gt;
+       &lt;/filteredKahaDB&gt;
+            &lt;filteredKahaDB queue=&quot;amqThroughPutTest.10&quot;&gt;
+        &lt;persistenceAdapter&gt;
+            &lt;kahaDB enableJournalDiskSyncs=&quot;true&quot; preallocationStrategy=&quot;zeros&quot; concurrentStoreAndDispatchQueues=&quot;false&quot;/&gt;
+        &lt;/persistenceAdapter&gt;
+       &lt;/filteredKahaDB&gt;
+       &lt;filteredKahaDB&gt;
+          &lt;persistenceAdapter&gt;
+            &lt;kahaDB enableJournalDiskSyncs=&quot;true&quot; preallocationStrategy=&quot;zeros&quot; concurrentStoreAndDispatchQueues=&quot;false&quot;/&gt;
+          &lt;/persistenceAdapter&gt;
+       &lt;/filteredKahaDB&gt;
+    &lt;/filteredPersistenceAdapters&gt;
+   &lt;/mKahaDB&gt;
+ &lt;/persistenceAdapter&gt; 
+</code></pre></div>
+<p>At this point the customer was getting pretty excited at seeing a 10x performance gain, but their expectation was 17,000-19,000 msgs/sec.  They asked whether we had anymore tricks up our sleeves, which we did of course.  I told the customer to add the following line to their etc/system.properties file:</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">org.apache.activemq.kahaDB.files.skipMetadataUpdate=true
+</code></pre></div>
+<p>On some operating systems, you can obtain better performance by enabling skipMetadataUpdate to call the fdatasync() system call instead of the fsync() system call (the default), when writing to a file. The difference between these system calls is that fdatasync() updates only the file data, whereas fsync() updates both the file data and the file metadata (for example, the access time).  Keep in mind that this setting does not work on all Operating Systems or JVM’s, thus it’s not a default setting.</p>
+
+<p>The customer retested this configuration using mKahadb destination sharding but reverting back to composite topics instead of queues.  This was the final result:</p>
+
+<h4><center>Pub only versus Pub/Sub, Composite Topics, Tuned, 4M messages<center></h4>
+
+<table><thead>
+<tr>
+<th>Test</th>
+<th>Result</th>
+</tr>
+</thead><tbody>
+<tr>
+<td>Pub only</td>
+<td>12,197 msgs/sec</td>
+</tr>
+<tr>
+<td>Pub / Sub</td>
+<td>16,783 msgs/sec</td>
+</tr>
+</tbody></table>
+
+<p>Not quite “high teens” but close enough.  After further analysis by Red Hat Engineering, we noticed that there were fsync bottlenecks occurring which could be optimized through a code change, so a fix was released to the community version of Apache ActiveMQ <a href="https://issues.apache.org/jira/browse/AMQ-6164">here</a>.  We’re all eagerly waiting for this fix to be included in a future release of JBoss A-MQ, so stay tuned to see whether we can finally hit our performance target of “high teens” once and for all.</p>
+
+  </article>
+
+  <div align="center">
+  	<a href="#">
+  	<i class="fa fa-arrow-circle-up fa-2x"></i>
+  	</a>
+  </div>
+
+</div>
+      </div>
+      <div class="wrapper">
+        
+<!-- Add Disqus comments. -->
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'sigreen'; // required: replace example with your forum shortname
+  var disqus_identifier = "/2016/02/10/amq-tuning.html";
+
+  /* * * DON'T EDIT BELOW THIS LINE * * */
+  (function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+      </div>
+    </div>
+
+    <div class="footer" align="center">
+
+  Designed by <a href=http://diezcami.github.io target="_blank">Camille Diez</a><BR />
+  Powered by <a href=http://jekyllrb.com target="_blank">Jekyll</a>
+
+</div>
+
+
+  </body>
+
+</html>
