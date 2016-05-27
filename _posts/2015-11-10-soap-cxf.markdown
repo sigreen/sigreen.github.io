@@ -12,7 +12,7 @@ My sample project is [here](https://github.com/sigreen/camel-cxf-soap-client).  
 
 * It’s better to develop with CXF system logging switched on so you can see your request / reply SOAP messages.  In your camel_context.xml, just set the following:
 
-```
+~~~ Text
 <!-- The interceptors bean definitions - used for logging SOAP requests. -->
 <!-- They can be removed, when no logging is needed -->
 <bean id="abstractLoggingInterceptor" abstract="true">
@@ -20,9 +20,10 @@ My sample project is [here](https://github.com/sigreen/camel-cxf-soap-client).  
 </bean>
 <bean id="loggingInInterceptor" class="org.apache.cxf.interceptor.LoggingInInterceptor" parent="abstractLoggingInterceptor" />
 <bean id="loggingOutInterceptor" class="org.apache.cxf.interceptor.LoggingOutInterceptor" parent="abstractLoggingInterceptor" />
-```
+~~~
+
 * SOAP UI is your friend.  Use the Mock test service to act as a sample SOAP server while you develop.
 * I prefer developing “contract first” i.e. using a WSDL contract clearly defining each service request/reply.  I used the handy wsdl2java cxf-codegen Maven plugin to generate my objects from the WSDL contract
-* Namespaces are confusing in CXF.  Rather than set the namespace on the CXF endpoint element, I found it clearer to embed the namespace name into the port / service name properties e.g. ```{http\://www.webserviceX.NET/}CurrencyConvertorSoap```
+* Namespaces are confusing in CXF.  Rather than set the namespace on the CXF endpoint element, I found it clearer to embed the namespace name into the port / service name properties e.g. `{http\://www.webserviceX.NET/}CurrencyConvertorSoap`
 
 And that’s it.  I was able to run the sample project within a local Camel Context, and once I was happy with the result, use the project as a template for developing something more specific for my customer.

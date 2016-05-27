@@ -48,7 +48,7 @@ Although these specs are secure and provide a valuable mechanism for (a)synchron
 Trading Partners to implement on the client side. A better technique I've used is to exchange RESTFul messages over HTTPS. The raw payload body is inserted into the 
 HTTP body, while metadata ends up in the HTTP headers (like digital signature, sender, receiver, destination etc).
 
-```
+~~~ Text
 POST /cxf/file HTTP/1.1
 Host: localhost
 Connection: keep-alive
@@ -61,7 +61,7 @@ Host: localhost:8183
 User-Agent: Apache-HttpClient/4.2.6 (java 1.5)
 
 My body goes here
-```
+~~~
 
 To ensure file integrity, I exchange a shared secret with my Trading Partners. This secret is hashed together with the HTTP body using the HMAC-SHA256 algorithm, then base64 encoded to give us a 16-bit digital signature. That way, if someone messes with the file between point A and B, we'll know about it.
 
