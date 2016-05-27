@@ -6,9 +6,157 @@
 </description>
     <link>http://sigreen.github.io/</link>
     <atom:link href="http://sigreen.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 11 Feb 2016 14:47:47 -0500</pubDate>
-    <lastBuildDate>Thu, 11 Feb 2016 14:47:47 -0500</lastBuildDate>
+    <pubDate>Fri, 27 May 2016 08:53:57 -0400</pubDate>
+    <lastBuildDate>Fri, 27 May 2016 08:53:57 -0400</lastBuildDate>
     <generator>Jekyll v2.4.0</generator>
+    
+      <item>
+        <title>Secure Financial Messaging with JBoss Fuse &amp; A-MQ</title>
+        <description>&lt;p&gt;Exchanging financial messages securely within an organization is challenging.  Although financial back office systems often lie within a trusted zone, we cannot be complacent about message security - especially if we’re sending instructions to move potentially large amounts of money.  But there are many ways we can tackle securing messaging within the back office environment.  Using a message broker like ActiveMQ is a good start, since it provides asynchronous, guaranteed and secure message delivery whilst eliminating data at rest.  But is this enough to prevent our sensitive messages being compromised?&lt;/p&gt;
+
+&lt;p&gt;Let’s have a closer look at the typical types of messages that are exchanged by financial institutions.  Here is a sample message:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;{1:F01ABCBUAU0XXXX0000000000}{2:I103DEFHUS33XXXXN}{4:
+:20:TEST1
+:23B:CRED
+:32A:131231USD111111111111,11
+:50K:/0123456789012345678901234567890123
+Joe Blogs
+7 Times Square
+Level 45
+New York NY 10036 USA
+:59:/0123456789012345678901234567890123
+John Smith
+123 Times Square
+New York NY 10036
+United States of America
+:70:Wire transfer for services rendered
+:71A:OUR
+-}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;The above message is a payment instruction to move money from Joe Blogs account to John Smith’s account.  The sensitive data we want to protect is primarily the account numbers and beneficiary details.  But lets take a step back for a moment and consider some other issues with this message.  They include&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Proprietary format&lt;/li&gt;
+&lt;li&gt;The message standard changes annually&lt;/li&gt;
+&lt;li&gt;Domain specific&lt;/li&gt;
+&lt;li&gt;Contains complex business rules&lt;/li&gt;
+&lt;li&gt;The data is non-descriptive&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;So how can we solve these problems and why do we care when we’re talking message security?  The answer is many fold:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;Our priority to protect message integrity.  We can’t have a hacker changing account numbers and beneficiary details.&lt;/li&gt;
+&lt;li&gt;Do we care if a hacker sees this information while it’s being transferred?  Probably not…&lt;/li&gt;
+&lt;li&gt;We need somewhere to store a digital signature - some kind of hash of the payload based on a shared secret. This ensures integrity of the message.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;The way we solve some of these problems is by using a classic Enterprise Integration Pattern (EIP) - the Canonical Data Model.  Basically, a common (and open) language that we define and control to speak system to system.  Here is how I would share the above message with internal systems in my organization:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&amp;lt;?xml version=&amp;quot;1.0&amp;quot; encoding=&amp;quot;UTF-8&amp;quot;?&amp;gt;
+&amp;lt;!-- Version 1.0 --&amp;gt;
+&amp;lt;paymentInstructionMessage xmlns=&amp;quot;http://ABCBank.Gateway.Contract/paymentInstructionMessage/v1.0&amp;quot;
+        xmlns:ns0=&amp;quot;http://ABCBank.Gateway.Contract/header/v1.0&amp;quot; 
+        xmlns:ns1=&amp;quot;http://ABCBank.Gateway.Contract/paymentInstruction/v1.0&amp;quot; 
+        xmlns:xsi=&amp;quot;http://www.w3.org/2001/XMLSchema-instance&amp;quot;
+        xsi:schemaLocation=&amp;quot;http://ABCBank.Gateway.Contract/paymentInstructionMessage/v1.0 paymentInstructionMessage.xsd&amp;quot;&amp;gt;
+    &amp;lt;header&amp;gt;
+        &amp;lt;ns0:serviceVersion&amp;gt;v11.11&amp;lt;/ns0:serviceVersion&amp;gt;
+        &amp;lt;ns0:environment&amp;gt;dev&amp;lt;/ns0:environment&amp;gt;
+        &amp;lt;ns0:transactionID&amp;gt;1234&amp;lt;/ns0:transactionID&amp;gt;
+        &amp;lt;ns0:messageCreationDateTime&amp;gt;2001-12-17T09:30:47Z&amp;lt;/ns0:messageCreationDateTime&amp;gt;
+        &amp;lt;ns0:priority&amp;gt;Normal&amp;lt;/ns0:priority&amp;gt;
+        &amp;lt;ns0:possibleDuplicate&amp;gt;T&amp;lt;/ns0:possibleDuplicate&amp;gt;
+        &amp;lt;ns0:sendingSystemComponent&amp;gt;SAA&amp;lt;/ns0:sendingSystemComponent&amp;gt;
+        &amp;lt;ns0:destinationSystemComponent&amp;gt;APOLLO&amp;lt;/ns0:destinationSystemComponent&amp;gt;
+    &amp;lt;/header&amp;gt;
+    &amp;lt;paymentInstruction&amp;gt;
+        &amp;lt;ns1:DestinationBIC&amp;gt;DEFHUS33XXX&amp;lt;/ns1:DestinationBIC&amp;gt;
+        &amp;lt;ns1:MessageReferenceNumber&amp;gt;TEST1&amp;lt;/ns1:MessageReferenceNumber&amp;gt;
+        &amp;lt;ns1:ValueDate&amp;gt;131231&amp;lt;/ns1:ValueDate&amp;gt;
+        &amp;lt;ns1:CurrencyCode&amp;gt;USD&amp;lt;/ns1:CurrencyCode&amp;gt;
+        &amp;lt;ns1:Amount&amp;gt;111111111111,11&amp;lt;/ns1:Amount&amp;gt;
+        &amp;lt;ns1:OrderingCustomerAccount&amp;gt;0123456789012345678901234567890123&amp;lt;/ns1:OrderingCustomerAccount&amp;gt;
+        &amp;lt;ns1:OrderingCustomerName&amp;gt;Joe Blogs&amp;lt;/ns1:OrderingCustomerName&amp;gt;
+        &amp;lt;ns1:OrderingCustomerAddress1&amp;gt;7 Times Square&amp;lt;/ns1:OrderingCustomerAddress1&amp;gt;
+        &amp;lt;ns1:OrderingCustomerAddress2&amp;gt;Level 45&amp;lt;/ns1:OrderingCustomerAddress2&amp;gt;
+        &amp;lt;ns1:OrderingCustomerAddress3&amp;gt;New York NY 10036 USA&amp;lt;/ns1:OrderingCustomerAddress3&amp;gt;
+        &amp;lt;ns1:IntermediaryInstitution&amp;gt;&amp;lt;/ns1:IntermediaryInstitution&amp;gt;
+        &amp;lt;ns1:IntermediaryInstitutionLocalClearingSystem&amp;gt;&amp;lt;/ns1:IntermediaryInstitutionLocalClearingSystem&amp;gt;
+        &amp;lt;ns1:IntermediaryInstitutionName&amp;gt;&amp;lt;/ns1:IntermediaryInstitutionName&amp;gt;
+        &amp;lt;ns1:AccountWithInstitution&amp;gt;&amp;lt;/ns1:AccountWithInstitution&amp;gt;
+        &amp;lt;ns1:AccountWithInstitutionLocalClearingSystem&amp;gt;&amp;lt;/ns1:AccountWithInstitutionLocalClearingSystem&amp;gt;
+        &amp;lt;ns1:AccountWithInstitutionName&amp;gt;&amp;lt;/ns1:AccountWithInstitutionName&amp;gt;
+        &amp;lt;ns1:BeneficiaryCustomerAccount&amp;gt;0123456789012345678901234567890123&amp;lt;/ns1:BeneficiaryCustomerAccount&amp;gt;
+        &amp;lt;ns1:BeneficiaryCustomerName&amp;gt;John Smith&amp;lt;/ns1:BeneficiaryCustomerName&amp;gt;
+        &amp;lt;ns1:BeneficiaryCustomerAddress1&amp;gt;123 Times Square&amp;lt;/ns1:BeneficiaryCustomerAddress1&amp;gt;
+        &amp;lt;ns1:BeneficiaryCustomerAddress2&amp;gt;New York NY 10036&amp;lt;/ns1:BeneficiaryCustomerAddress2&amp;gt;
+        &amp;lt;ns1:BeneficiaryCustomerAddress3&amp;gt;United States of America&amp;lt;/ns1:BeneficiaryCustomerAddress3&amp;gt;
+        &amp;lt;ns1:RemittanceInformation&amp;gt;Wire transfer for services rendered&amp;lt;/ns1:RemittanceInformation&amp;gt;
+        &amp;lt;ns1:DetailofCharges&amp;gt;OUR&amp;lt;/ns1:DetailofCharges&amp;gt;
+    &amp;lt;/paymentInstruction&amp;gt;
+&amp;lt;/paymentInstructionMessage&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;The beauty behind the above structure is that it’s:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Self describing&lt;/li&gt;
+&lt;li&gt;Human readable&lt;/li&gt;
+&lt;li&gt;Generic structure&lt;/li&gt;
+&lt;li&gt;Open&lt;/li&gt;
+&lt;li&gt;Can easily be validated against an XSD&lt;/li&gt;
+&lt;li&gt;Separates business data from system metadata (contained in the header block)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;But how does this improve message security? The fact is it doesn’t by itself, but it does give us a platform to add a Digital Signature or transform into a more RESTful structure like JSON.  This is how we solve the message integrity issue - protecting account numbers and beneficiary details from modification during transmission.&lt;/p&gt;
+
+&lt;p&gt;Lets talk some more about the Digital Signature.  The easiest way to achieve this is using a hash algorithm.  The one I like to use the HMAC-SHA256 (described &lt;a href=&quot;https://en.wikipedia.org/wiki/Hash-based_message_authentication_code&quot;&gt;here&lt;/a&gt;).  By using a shared secret (password) between your app and back office system, we can generate a hash and include it either as a JMS property, HTTP header or as part of an S/MIME message.  The code we use looks something like this:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;/**
+ * Calculate the LAU (digital signature)
+ * 
+ * @param payload the raw payload (in bytes)
+ * @return the LAU signature
+ * @throws Exception
+ */
+private byte[] calculateLAU(byte[] payload) throws Exception {
+    Mac m = Mac.getInstance(&amp;quot;HmacSHA256&amp;quot;);
+
+    // initialize key with shared secret from SAA
+    SecretKeySpec keyspec = new SecretKeySpec(this.hmacKey.getBytes(Charset.forName(&amp;quot;US-ASCII&amp;quot;)), &amp;quot;HmacSHA256&amp;quot;);
+    m.init(keyspec);
+
+    // calculate the LAU
+    byte[] lau = m.doFinal(payload);
+    byte[] lau_to_encode = new byte[16];
+
+     System.arraycopy(lau, 0, lau_to_encode, 0, 16);
+     LOGGER.info(&amp;quot;LAU value is: [&amp;quot; + Base64.encodeBase64String(lau_to_encode) + &amp;quot;]&amp;quot;);
+     return Base64.encodeBase64(lau_to_encode);
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;To preserve whitespace and CRLF, we base64 encode the payload before generating the hash, adding it to the JMS properties and transmitting it.  When the receiving system receives the JMS message, it must first generate a hash based on the base64 encoded payload and match that with the Digital Signature JMS property.  If the generated hash doesn’t match the JMS property, we know our message has been tampered with and must be discarded.&lt;/p&gt;
+
+&lt;p&gt;But lets step back from the weeds and take a 30,000 foot view of our flow using the EIP lexicon:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/eip_flow_end_to_end.png&quot; alt=&quot;EIP End to End Flow&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;To achieve a secure channel between our back office and (proprietary) messaging gateway, we have:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;A-MQ providing Guaranteed Delivery, eliminating data at rest and providing asynchronous “fire and forget” messaging&lt;/li&gt;
+&lt;li&gt;The Fuse JMS client providing a Messaging Gateway&lt;/li&gt;
+&lt;li&gt;Using our Digital Signature and Canonical Data Model above, we have an implementation of the Envelope Wrapper EIP&lt;/li&gt;
+&lt;li&gt;Using a message transformer, we can transform the message to/from our Canonical Data Model to the proprietary message format accepted by the Messaging Gateway&lt;/li&gt;
+&lt;li&gt;The Channel Adapter step takes care of preparing the message to be sent / received over the external Messaging Gateway&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;You’ll notice I haven’t mentioned SSL once during this article.  That’s because it’s not really required for what we’re trying to ultimately achieve: guaranteeing message integrity.  SSL gives us authentication, authorization and an encrypted channel but it doesn’t provide us with a means to guarantee message integrity, therefore unless your organization mandates all back office communication channels must use SSL, I wouldn’t bother given the effort to administer and manage certificates for each system.&lt;/p&gt;
+</description>
+        <pubDate>Tue, 24 May 2016 00:00:00 -0400</pubDate>
+        <link>http://sigreen.github.io/2016/05/24/message-channel-security.html</link>
+        <guid isPermaLink="true">http://sigreen.github.io/2016/05/24/message-channel-security.html</guid>
+        
+        
+      </item>
     
       <item>
         <title>JBoss A-MQ 6.2 Performance Tuning Adventures</title>
