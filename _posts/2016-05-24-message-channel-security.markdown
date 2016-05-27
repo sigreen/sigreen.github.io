@@ -10,7 +10,7 @@ Exchanging financial messages securely within an organization is challenging.  A
 
 Let’s have a closer look at the typical types of messages that are exchanged by financial institutions.  Here is a sample message:
 
-```Text
+~~~ Text
 {1:F01ABCBUAU0XXXX0000000000}{2:I103DEFHUS33XXXXN}{4:
 :20:TEST1
 :23B:CRED
@@ -28,7 +28,7 @@ United States of America
 :70:Wire transfer for services rendered
 :71A:OUR
 -}
-```
+~~~
 
 The above message is a payment instruction to move money from Joe Blogs account to John Smith’s account.  The sensitive data we want to protect is primarily the account numbers and beneficiary details.  But lets take a step back for a moment and consider some other issues with this message.  They include
 
@@ -46,7 +46,7 @@ So how can we solve these problems and why do we care when we’re talking messa
 
 The way we solve some of these problems is by using a classic Enterprise Integration Pattern (EIP) - the Canonical Data Model.  Basically, a common (and open) language that we define and control to speak system to system.  Here is how I would share the above message with internal systems in my organization:
 
-```
+~~~ XML
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Version 1.0 -->
 <paymentInstructionMessage xmlns="http://ABCBank.Gateway.Contract/paymentInstructionMessage/v1.0"
@@ -90,7 +90,7 @@ The way we solve some of these problems is by using a classic Enterprise Integra
 		<ns1:DetailofCharges>OUR</ns1:DetailofCharges>
 	</paymentInstruction>
 </paymentInstructionMessage>
-```
+~~~
 
 The beauty behind the above structure is that it’s:
 
@@ -105,7 +105,7 @@ But how does this improve message security? The fact is it doesn’t by itself, 
 
 Lets talk some more about the Digital Signature.  The easiest way to achieve this is using a hash algorithm.  The one I like to use the HMAC-SHA256 (described [here](https://en.wikipedia.org/wiki/Hash-based_message_authentication_code)).  By using a shared secret (password) between your app and back office system, we can generate a hash and include it either as a JMS property, HTTP header or as part of an S/MIME message.  The code we use looks something like this:
 
-```
+~~~ Java
 /**
  * Calculate the LAU (digital signature)
  * 
@@ -128,7 +128,7 @@ private byte[] calculateLAU(byte[] payload) throws Exception {
      LOGGER.info("LAU value is: [" + Base64.encodeBase64String(lau_to_encode) + "]");
      return Base64.encodeBase64(lau_to_encode);
 }
-```
+~~~
 
 To preserve whitespace and CRLF, we base64 encode the payload before generating the hash, adding it to the JMS properties and transmitting it.  When the receiving system receives the JMS message, it must first generate a hash based on the base64 encoded payload and match that with the Digital Signature JMS property.  If the generated hash doesn’t match the JMS property, we know our message has been tampered with and must be discarded.
 
