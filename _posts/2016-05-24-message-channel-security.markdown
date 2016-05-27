@@ -10,7 +10,7 @@ Exchanging financial messages securely within an organization is challenging.  A
 
 Let’s have a closer look at the typical types of messages that are exchanged by financial institutions.  Here is a sample message:
 
-```
+```Text
 {1:F01ABCBUAU0XXXX0000000000}{2:I103DEFHUS33XXXXN}{4:
 :20:TEST1
 :23B:CRED
