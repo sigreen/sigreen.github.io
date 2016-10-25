@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Secure Financial Messaging with JBoss Fuse & A-MQ</title>
+  <meta name="description" content="Exchanging financial messages securely within an organization is challenging.  Although financial back office systems often lie within a trusted zone, we can...">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="http://sigreen.github.io/2016/05/24/message-channel-security.html">
+  <link rel="alternate" type="application/rss+xml" title="Simon’s Blog" href="http://sigreen.github.io/feed.xml" />
+
+  <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+  <link href='//fonts.googleapis.com/css?family=PT+Sans:400,700' rel='stylesheet' type='text/css'>
+  <link href='//fonts.googleapis.com/css?family=Open+Sans:300,700' rel='stylesheet' type='text/css'>
+</head>
+
+
+  <body>
+
+    <div class="site-header">
+
+    <nav class="site-nav">
+        
+          
+          <a class="page-link" href="/about/">About</a>
+          
+        
+          
+        
+          
+        
+          
+        
+    </nav>
+
+    <h1>
+     <span>
+      <a class="site-title" href="/">Simon’s Blog</a>
+     </span>
+    </h1>
+
+
+</div>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+     <h1 class="post-title">Secure Financial Messaging with JBoss Fuse & A-MQ</h1>
+     <p class="post-meta">Posted on May 24, 2016</p>
+  </header>
+
+  <article class="post-content">
+    <p>Exchanging financial messages securely within an organization is challenging.  Although financial back office systems often lie within a trusted zone, we cannot be complacent about message security - especially if we’re sending instructions to move potentially large amounts of money.  But there are many ways we can tackle securing messaging within the back office environment.  Using a message broker like ActiveMQ is a good start, since it provides asynchronous, guaranteed and secure message delivery whilst eliminating data at rest.  But is this enough to prevent our sensitive messages being compromised?</p>
+
+<p>Let’s have a closer look at the typical types of messages that are exchanged by financial institutions.  Here is a sample message:</p>
+
+<pre><code class="language-Text">{1:F01ABCBUAU0XXXX0000000000}{2:I103DEFHUS33XXXXN}{4:
+:20:TEST1
+:23B:CRED
+:32A:131231USD111111111111,11
+:50K:/0123456789012345678901234567890123
+Joe Blogs
+7 Times Square
+Level 45
+New York NY 10036 USA
+:59:/0123456789012345678901234567890123
+John Smith
+123 Times Square
+New York NY 10036
+United States of America
+:70:Wire transfer for services rendered
+:71A:OUR
+-}
+</code></pre>
+
+<p>The above message is a payment instruction to move money from Joe Blogs account to John Smith’s account.  The sensitive data we want to protect is primarily the account numbers and beneficiary details.  But lets take a step back for a moment and consider some other issues with this message.  They include</p>
+
+<ul>
+  <li>Proprietary format</li>
+  <li>The message standard changes annually</li>
+  <li>Domain specific</li>
+  <li>Contains complex business rules</li>
+  <li>The data is non-descriptive</li>
+</ul>
+
+<p>So how can we solve these problems and why do we care when we’re talking message security?  The answer is many fold:</p>
+
+<ol>
+  <li>Our priority to protect message integrity.  We can’t have a hacker changing account numbers and beneficiary details.</li>
+  <li>Do we care if a hacker sees this information while it’s being transferred?  Probably not…</li>
+  <li>We need somewhere to store a digital signature - some kind of hash of the payload based on a shared secret. This ensures integrity of the message.</li>
+</ol>
+
+<p>The way we solve some of these problems is by using a classic Enterprise Integration Pattern (EIP) - the Canonical Data Model.  Basically, a common (and open) language that we define and control to speak system to system.  Here is how I would share the above message with internal systems in my organization:</p>
+
+<pre><code class="language-XML">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;!-- Version 1.0 --&gt;
+&lt;paymentInstructionMessage xmlns="http://ABCBank.Gateway.Contract/paymentInstructionMessage/v1.0"
+		xmlns:ns0="http://ABCBank.Gateway.Contract/header/v1.0" 
+		xmlns:ns1="http://ABCBank.Gateway.Contract/paymentInstruction/v1.0" 
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xsi:schemaLocation="http://ABCBank.Gateway.Contract/paymentInstructionMessage/v1.0 paymentInstructionMessage.xsd"&gt;
+	&lt;header&gt;
+		&lt;ns0:serviceVersion&gt;v11.11&lt;/ns0:serviceVersion&gt;
+		&lt;ns0:environment&gt;dev&lt;/ns0:environment&gt;
+		&lt;ns0:transactionID&gt;1234&lt;/ns0:transactionID&gt;
+		&lt;ns0:messageCreationDateTime&gt;2001-12-17T09:30:47Z&lt;/ns0:messageCreationDateTime&gt;
+		&lt;ns0:priority&gt;Normal&lt;/ns0:priority&gt;
+		&lt;ns0:possibleDuplicate&gt;T&lt;/ns0:possibleDuplicate&gt;
+		&lt;ns0:sendingSystemComponent&gt;SAA&lt;/ns0:sendingSystemComponent&gt;
+		&lt;ns0:destinationSystemComponent&gt;APOLLO&lt;/ns0:destinationSystemComponent&gt;
+	&lt;/header&gt;
+	&lt;paymentInstruction&gt;
+		&lt;ns1:DestinationBIC&gt;DEFHUS33XXX&lt;/ns1:DestinationBIC&gt;
+		&lt;ns1:MessageReferenceNumber&gt;TEST1&lt;/ns1:MessageReferenceNumber&gt;
+		&lt;ns1:ValueDate&gt;131231&lt;/ns1:ValueDate&gt;
+		&lt;ns1:CurrencyCode&gt;USD&lt;/ns1:CurrencyCode&gt;
+		&lt;ns1:Amount&gt;111111111111,11&lt;/ns1:Amount&gt;
+		&lt;ns1:OrderingCustomerAccount&gt;0123456789012345678901234567890123&lt;/ns1:OrderingCustomerAccount&gt;
+		&lt;ns1:OrderingCustomerName&gt;Joe Blogs&lt;/ns1:OrderingCustomerName&gt;
+		&lt;ns1:OrderingCustomerAddress1&gt;7 Times Square&lt;/ns1:OrderingCustomerAddress1&gt;
+		&lt;ns1:OrderingCustomerAddress2&gt;Level 45&lt;/ns1:OrderingCustomerAddress2&gt;
+		&lt;ns1:OrderingCustomerAddress3&gt;New York NY 10036 USA&lt;/ns1:OrderingCustomerAddress3&gt;
+		&lt;ns1:IntermediaryInstitution&gt;&lt;/ns1:IntermediaryInstitution&gt;
+		&lt;ns1:IntermediaryInstitutionLocalClearingSystem&gt;&lt;/ns1:IntermediaryInstitutionLocalClearingSystem&gt;
+		&lt;ns1:IntermediaryInstitutionName&gt;&lt;/ns1:IntermediaryInstitutionName&gt;
+		&lt;ns1:AccountWithInstitution&gt;&lt;/ns1:AccountWithInstitution&gt;
+		&lt;ns1:AccountWithInstitutionLocalClearingSystem&gt;&lt;/ns1:AccountWithInstitutionLocalClearingSystem&gt;
+		&lt;ns1:AccountWithInstitutionName&gt;&lt;/ns1:AccountWithInstitutionName&gt;
+		&lt;ns1:BeneficiaryCustomerAccount&gt;0123456789012345678901234567890123&lt;/ns1:BeneficiaryCustomerAccount&gt;
+		&lt;ns1:BeneficiaryCustomerName&gt;John Smith&lt;/ns1:BeneficiaryCustomerName&gt;
+		&lt;ns1:BeneficiaryCustomerAddress1&gt;123 Times Square&lt;/ns1:BeneficiaryCustomerAddress1&gt;
+		&lt;ns1:BeneficiaryCustomerAddress2&gt;New York NY 10036&lt;/ns1:BeneficiaryCustomerAddress2&gt;
+		&lt;ns1:BeneficiaryCustomerAddress3&gt;United States of America&lt;/ns1:BeneficiaryCustomerAddress3&gt;
+		&lt;ns1:RemittanceInformation&gt;Wire transfer for services rendered&lt;/ns1:RemittanceInformation&gt;
+		&lt;ns1:DetailofCharges&gt;OUR&lt;/ns1:DetailofCharges&gt;
+	&lt;/paymentInstruction&gt;
+&lt;/paymentInstructionMessage&gt;
+</code></pre>
+
+<p>The beauty behind the above structure is that it’s:</p>
+
+<ul>
+  <li>Self describing</li>
+  <li>Human readable</li>
+  <li>Generic structure</li>
+  <li>Open</li>
+  <li>Can easily be validated against an XSD</li>
+  <li>Separates business data from system metadata (contained in the header block)</li>
+</ul>
+
+<p>But how does this improve message security? The fact is it doesn’t by itself, but it does give us a platform to add a Digital Signature or transform into a more RESTful structure like JSON.  This is how we solve the message integrity issue - protecting account numbers and beneficiary details from modification during transmission.</p>
+
+<p>Lets talk some more about the Digital Signature.  The easiest way to achieve this is using a hash algorithm.  The one I like to use the HMAC-SHA256 (described <a href="https://en.wikipedia.org/wiki/Hash-based_message_authentication_code">here</a>).  By using a shared secret (password) between your app and back office system, we can generate a hash and include it either as a JMS property, HTTP header or as part of an S/MIME message.  The code we use looks something like this:</p>
+
+<pre><code class="language-Java">/**
+ * Calculate the LAU (digital signature)
+ * 
+ * @param payload the raw payload (in bytes)
+ * @return the LAU signature
+ * @throws Exception
+ */
+private byte[] calculateLAU(byte[] payload) throws Exception {
+    Mac m = Mac.getInstance("HmacSHA256");
+
+    // initialize key with shared secret from SAA
+    SecretKeySpec keyspec = new SecretKeySpec(this.hmacKey.getBytes(Charset.forName("US-ASCII")), "HmacSHA256");
+    m.init(keyspec);
+    
+    // calculate the LAU
+    byte[] lau = m.doFinal(payload);
+    byte[] lau_to_encode = new byte[16];
+    
+     System.arraycopy(lau, 0, lau_to_encode, 0, 16);
+     LOGGER.info("LAU value is: [" + Base64.encodeBase64String(lau_to_encode) + "]");
+     return Base64.encodeBase64(lau_to_encode);
+}
+</code></pre>
+
+<p>To preserve whitespace and CRLF, we base64 encode the payload before generating the hash, adding it to the JMS properties and transmitting it.  When the receiving system receives the JMS message, it must first generate a hash based on the base64 encoded payload and match that with the Digital Signature JMS property.  If the generated hash doesn’t match the JMS property, we know our message has been tampered with and must be discarded.</p>
+
+<p>But lets step back from the weeds and take a 30,000 foot view of our flow using the EIP lexicon:</p>
+
+<p><img src="/images/eip_flow_end_to_end.png" alt="EIP End to End Flow" /></p>
+
+<p>To achieve a secure channel between our back office and (proprietary) messaging gateway, we have:</p>
+
+<ol>
+  <li>A-MQ providing Guaranteed Delivery, eliminating data at rest and providing asynchronous “fire and forget” messaging</li>
+  <li>The Fuse JMS client providing a Messaging Gateway</li>
+  <li>Using our Digital Signature and Canonical Data Model above, we have an implementation of the Envelope Wrapper EIP</li>
+  <li>Using a message transformer, we can transform the message to/from our Canonical Data Model to the proprietary message format accepted by the Messaging Gateway</li>
+  <li>The Channel Adapter step takes care of preparing the message to be sent / received over the external Messaging Gateway</li>
+</ol>
+
+<p>You’ll notice I haven’t mentioned SSL once during this article.  That’s because it’s not really required for what we’re trying to ultimately achieve: guaranteeing message integrity.  SSL gives us authentication, authorization and an encrypted channel but it doesn’t provide us with a means to guarantee message integrity, therefore unless your organization mandates all back office communication channels must use SSL, I wouldn’t bother given the effort to administer and manage certificates for each system.</p>
+
+  </article>
+
+  <div align="center">
+  	<a href="#">
+  	<i class="fa fa-arrow-circle-up fa-2x"></i>
+  	</a>
+  </div>
+
+</div>
+      </div>
+      <div class="wrapper">
+        
+<!-- Add Disqus comments. -->
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'sigreen'; // required: replace example with your forum shortname
+  var disqus_identifier = "/2016/05/24/message-channel-security.html";
+
+  /* * * DON'T EDIT BELOW THIS LINE * * */
+  (function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+      </div>
+    </div>
+
+    <div class="footer" align="center">
+
+  Designed by <a href=http://diezcami.github.io target="_blank">Camille Diez</a><BR />
+  Powered by <a href=http://jekyllrb.com target="_blank">Jekyll</a>
+
+</div>
+
+
+  </body>
+
+</html>

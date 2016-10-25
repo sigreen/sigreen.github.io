@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Tackling AS2 with JBoss Fuse</title>
+  <meta name="description" content="AS2, or Applicability Statement 2, is a specification which customers ask me about from time-to-time.  It’s a protocol I’ve implemented in the past using bot...">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="http://sigreen.github.io/2016/10/13/as2-fuse.html">
+  <link rel="alternate" type="application/rss+xml" title="Simon’s Blog" href="http://sigreen.github.io/feed.xml" />
+
+  <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+  <link href='//fonts.googleapis.com/css?family=PT+Sans:400,700' rel='stylesheet' type='text/css'>
+  <link href='//fonts.googleapis.com/css?family=Open+Sans:300,700' rel='stylesheet' type='text/css'>
+</head>
+
+
+  <body>
+
+    <div class="site-header">
+
+    <nav class="site-nav">
+        
+          
+          <a class="page-link" href="/about/">About</a>
+          
+        
+          
+        
+          
+        
+          
+        
+    </nav>
+
+    <h1>
+     <span>
+      <a class="site-title" href="/">Simon’s Blog</a>
+     </span>
+    </h1>
+
+
+</div>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+     <h1 class="post-title">Tackling AS2 with JBoss Fuse</h1>
+     <p class="post-meta">Posted on Oct 13, 2016</p>
+  </header>
+
+  <article class="post-content">
+    <p>AS2, or Applicability Statement 2, is a specification which customers ask me about from time-to-time.  It’s a protocol I’ve implemented in the past using both homegrown and proprietary EAI suite applications, and I was always impressed with the efficiency and ability of AS2 to implement guaranteed message delivery between B2B Trading Partner applications.  It’s also nice that a calling application can request an Acknowledgement when sending a message, plus the option of encrypting the message and/or channel, and signing of the message for non-repudiation and authentication.</p>
+
+<p>Essentially, AS2 is nothing more than an S/MIME message (or email) exchanged over HTTP(S).  Sounds simple enough, but the underlying specification is where the real meat is.  Let’s start with taking a look at a synchronous “fire and forget” AS2 message without a request for an Acknowledgement:</p>
+
+<pre><code class="language-Text">AS2-Version:1.1
+AS2-From:ABCCorp1
+AS2-To:DEFCorp2
+Date:Mon, 01 Oct 2007 12:39:55 CEST
+Message-ID:&lt;-61ce18ba:1155b26911a:-8000&gt;
+Subject:AS2 Message
+X-VerifiedContentMIC:1234,sha1
+disposition-notification-to: ABCCorp1
+disposition-notification-options:signed-receipt-protocol=optional, pkcs7-signature;signed-receipt-micalg=optional, sha1
+Content-Type:multipart/signed; protocol="application/pkcs7-signature"; micalg=sha1; boundary="----=_Part_0_1534588573.1191235195391"
+User-Agent:Jakarta Commons-HttpClient/3.0.1
+Host:10.53.1.46:10080
+Content-Length:12121
+URI:/b2b/as2/syncmdn
+
+
+------=_Part_0_1534588573.1191235195391
+Content-Type: text/plain; charset=ISO-8859-1; name=payload.txt
+Content-Transfer-Encoding: binary
+Content-Disposition: attachment; filename=payload.txt
+
+111111111
+111111111
+111111111
+111111111
+
+------=_Part_0_1534588573.1191235195391
+Content-Type: application/pkcs7-signature; name=smime.p7s; smime-type=signed-data
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="smime.p7s"
+Content-Description: S/MIME Cryptographic Signature
+
+D58aXhcU3LF8EV8zg2ExggGTMIIBjwIBATBXME8xCzAJBgNVBAYTAkVTMRIwEAYDVQQKEwlQYXJ0
+MDcxMDAxMTAzOTU1WjAjBgkqhkiG9w0BCQQxFgQUXjgKuDVTY32GmtdMoZipz9K+DnIwNAYJKoZI
+hvcNAQkPMScwJTAKBggqhkiG9w0DBzAOBggqhkiG9w0DAgICAIAwBwYFKw4DAgcwDQYJKoZIhvcN
+AQEBBQAEgYAz0qQekvfMDlbzzQJKCLkro6+70cvD8YQIftXU/v/x2xkK8HmtU7/TyMB1QH3+jQwl
+paFeRrpZmuhP/HNagVoSwb7LIWBu8WvPuisLThRcsWnt6HdE0ZYltkjlSU2hsN/RSqfU+BuGSL1k
+lmcA8AjzEGq7eioMKMh3SRbhJZpSQAAAAAAAAA==
+------=_Part_0_1534588573.1191235195391--
+
+</code></pre>
+
+<p>The above message is really nothing more than an HTTP request message.  You’ll notice the HTTP headers contain a few specific AS2 properties, the HTTP body in this case is unencrypted and there is a SHA1 digital signature to sign the unencrypted message.  This scenario works great when you have an external B2B trading partner who needs to forward a notification message and doesn’t expect a reply.  But what about guaranteed message delivery?  What if the sending B2B partner would like to know when the message is received and processed by the receiving system?  In this case, we introduce something called “Message Disposition Notification” or MDN.  An MDN is just a wordy acknowledgement.  We can request an MDN by specifying a “reply-to” address and “disposition-notification-options” like below:</p>
+
+<p><img src="/images/as2_async.png" alt="Async AS2 Message" /></p>
+
+<p>Now we have a way of (a)synchronously exchanging messages between Trading Partners, whilst guaranteeing message delivery without the need for a centralized broker.  A sending Trading Partner has confirmation their message has been received, valid and processed via an MDN transmission.  Take a look at the below synchronous reply:</p>
+
+<p><img src="/images/as2_sync_invalid.png" alt="Sync MDN Message" /></p>
+
+<p>You’ll notice an X-VerificationFailure:true header indicating the exchange could not be verified (probably because it cannot be authenticated).  This is great news as the receiving AS2 server can verify the digital signature immediately using a Hardware Security Module (HSM) for realtime performance, without forwarding the “dodgy” message to the backend system.  So effectively acting as a proxy.</p>
+
+<p>Here’s an example asynchronous MDN message :</p>
+
+<p><img src="/images/as2_mdn_async.png" alt="Async MDN Message" /></p>
+
+<p>This MDN originates from the backend receiving system, telling the sender there was a problem during the processing of the message.  But this is not a problem with the AS2 exchange - this was a problem with the business payload itself.  Therefore, we now have guaranteed message delivery and status of business payload processing.</p>
+
+<p>So there’s the semantics out of the way, what about Fuse?  And what is so difficult about building this out using a fluent API like Camel with EIP building blocks?  Let’s look a little closer at what’s required here:</p>
+
+<ul>
+  <li>An HTTP server</li>
+  <li>A repository to store digital keys + certs (JKS or HSM)</li>
+  <li>A repository to store the state of AS2 exchanges (for duplicate checking and auditing)</li>
+  <li>A repository to store Trading Partner credentials (XML file or Database)</li>
+</ul>
+
+<p>Life would be easier if there was a Camel component to kickstart the AS2 flow, but unfortunately there isn’t.  So let’s look at what options we have:</p>
+
+<h3 id="openas2httpssourceforgenetprojectsopenas2"><a href="https://sourceforge.net/projects/openas2/">OpenAS2</a></h3>
+
+<p>OpenAS2 is a java-based AS2 implementation. It is intended to be used as a server, configurable and supports a wide variety of signing and encryption algorithms.  Features of OpenAS2 include:</p>
+
+<ul>
+  <li>Conforms with AS2 1.1 protocol</li>
+  <li>Can run as a server daemon</li>
+  <li>Support for remote control</li>
+  <li>Configurable Signature and encryption</li>
+  <li>Supports compression</li>
+  <li>Configurable Synchronous and Asynchronous MDN</li>
+  <li>Supports HTTPS transport protocol</li>
+  <li>Supports filename preservation</li>
+  <li>Supports FDA Automatic Submissions Gateway using custom headers</li>
+  <li>Supports easy extending and adding of new modules via XML configuration</li>
+</ul>
+
+<p>Projects like OpenAS2 are great news, as they’re portable to Java-based applications like JBoss Fuse.  There are some challenges we need to overcome though, including:</p>
+
+<ul>
+  <li>No support for OSGi containers</li>
+  <li>Trading Partner information (credentials, keys, certs) are all managed via a large XML file.  Not ideal if you have hundreds or even thousands of Trading Partner credentials to maintain</li>
+  <li>Inflexible database support - H2 only</li>
+</ul>
+
+<p>OpenAS2 is great start for what we’re trying to achieve, but we need to look further afield.</p>
+
+<h3 id="as2-serverhttpsgithubcomphaxas2-server"><a href="https://github.com/phax/as2-server">as2-server</a></h3>
+
+<p>Luckily, there’s another project which further extends OpenAS2.  It’s called as2-server / as2-lib and can be found <a href="https://github.com/phax/as2-server">here</a>.  The advantage of this project is:</p>
+
+<ul>
+  <li>Maven support</li>
+  <li>Some OSGi support</li>
+  <li>Replaces H2 database with MongoDB</li>
+</ul>
+
+<p>This project could easily be ported to run in Karaf, and potentially extended to offer Trading Partner profile storage on Mongo or some other relational database.  Hopefully in the future we might see a Camel component appear that takes all the goodness from these projects and provides a flexible, extensible and maintainable AS2 solution that we can use in the field.</p>
+
+
+  </article>
+
+  <div align="center">
+  	<a href="#">
+  	<i class="fa fa-arrow-circle-up fa-2x"></i>
+  	</a>
+  </div>
+
+</div>
+      </div>
+      <div class="wrapper">
+        
+<!-- Add Disqus comments. -->
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+  /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+  var disqus_shortname = 'sigreen'; // required: replace example with your forum shortname
+  var disqus_identifier = "/2016/10/13/as2-fuse.html";
+
+  /* * * DON'T EDIT BELOW THIS LINE * * */
+  (function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+      </div>
+    </div>
+
+    <div class="footer" align="center">
+
+  Designed by <a href=http://diezcami.github.io target="_blank">Camille Diez</a><BR />
+  Powered by <a href=http://jekyllrb.com target="_blank">Jekyll</a>
+
+</div>
+
+
+  </body>
+
+</html>

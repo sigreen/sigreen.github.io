@@ -62,20 +62,22 @@
 <p>My sample project is <a href="https://github.com/sigreen/camel-cxf-soap-client">here</a>.  Key points I learnt were:</p>
 
 <ul>
-<li>It’s better to develop with CXF system logging switched on so you can see your request / reply SOAP messages.  In your camel_context.xml, just set the following:</li>
+  <li>It’s better to develop with CXF system logging switched on so you can see your request / reply SOAP messages.  In your camel_context.xml, just set the following:</li>
 </ul>
-<div class="highlight"><pre><code class="language-text" data-lang="text">&lt;!-- The interceptors bean definitions - used for logging SOAP requests. --&gt;
+
+<pre><code class="language-Text">&lt;!-- The interceptors bean definitions - used for logging SOAP requests. --&gt;
 &lt;!-- They can be removed, when no logging is needed --&gt;
-&lt;bean id=&quot;abstractLoggingInterceptor&quot; abstract=&quot;true&quot;&gt;
-    &lt;property name=&quot;prettyLogging&quot; value=&quot;true&quot; /&gt;
+&lt;bean id="abstractLoggingInterceptor" abstract="true"&gt;
+	&lt;property name="prettyLogging" value="true" /&gt;
 &lt;/bean&gt;
-&lt;bean id=&quot;loggingInInterceptor&quot; class=&quot;org.apache.cxf.interceptor.LoggingInInterceptor&quot; parent=&quot;abstractLoggingInterceptor&quot; /&gt;
-&lt;bean id=&quot;loggingOutInterceptor&quot; class=&quot;org.apache.cxf.interceptor.LoggingOutInterceptor&quot; parent=&quot;abstractLoggingInterceptor&quot; /&gt;
-</code></pre></div>
+&lt;bean id="loggingInInterceptor" class="org.apache.cxf.interceptor.LoggingInInterceptor" parent="abstractLoggingInterceptor" /&gt;
+&lt;bean id="loggingOutInterceptor" class="org.apache.cxf.interceptor.LoggingOutInterceptor" parent="abstractLoggingInterceptor" /&gt;
+</code></pre>
+
 <ul>
-<li>SOAP UI is your friend.  Use the Mock test service to act as a sample SOAP server while you develop.</li>
-<li>I prefer developing “contract first” i.e. using a WSDL contract clearly defining each service request/reply.  I used the handy wsdl2java cxf-codegen Maven plugin to generate my objects from the WSDL contract</li>
-<li>Namespaces are confusing in CXF.  Rather than set the namespace on the CXF endpoint element, I found it clearer to embed the namespace name into the port / service name properties e.g. <code>{http\://www.webserviceX.NET/}CurrencyConvertorSoap</code></li>
+  <li>SOAP UI is your friend.  Use the Mock test service to act as a sample SOAP server while you develop.</li>
+  <li>I prefer developing “contract first” i.e. using a WSDL contract clearly defining each service request/reply.  I used the handy wsdl2java cxf-codegen Maven plugin to generate my objects from the WSDL contract</li>
+  <li>Namespaces are confusing in CXF.  Rather than set the namespace on the CXF endpoint element, I found it clearer to embed the namespace name into the port / service name properties e.g. <code>{http\://www.webserviceX.NET/}CurrencyConvertorSoap</code></li>
 </ul>
 
 <p>And that’s it.  I was able to run the sample project within a local Camel Context, and once I was happy with the result, use the project as a template for developing something more specific for my customer.</p>

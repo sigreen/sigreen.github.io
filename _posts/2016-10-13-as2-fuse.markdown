@@ -1,0 +1,77 @@
+---
+layout: post
+title: Tackling AS2 with JBoss Fuse
+date: 2016-10-13
+comments: True
+categories:
+---
+
+AS2, or Applicability Statement 2, is a specification which customers ask me about from time-to-time.  It’s a protocol I’ve implemented in the past using both homegrown and proprietary EAI suite applications, and I was always impressed with the efficiency and ability of AS2 to implement guaranteed message delivery between B2B Trading Partner applications.  It’s also nice that a calling application can request an Acknowledgement when sending a message, plus the option of encrypting the message and/or channel, and signing of the message for non-repudiation and authentication.
+
+Essentially, AS2 is nothing more than an S/MIME message (or email) exchanged over HTTP(S).  Sounds simple enough, but the underlying specification is where the real meat is.  Let’s start with taking a look at a synchronous “fire and forget” AS2 message without a request for an Acknowledgement:
+
+
+~~~ Text
+AS2-Version:1.1AS2-From:ABCCorp1AS2-To:DEFCorp2Date:Mon, 01 Oct 2007 12:39:55 CESTMessage-ID:<-61ce18ba:1155b26911a:-8000>Subject:AS2 MessageX-VerifiedContentMIC:1234,sha1disposition-notification-to: ABCCorp1disposition-notification-options:signed-receipt-protocol=optional, pkcs7-signature;signed-receipt-micalg=optional, sha1Content-Type:multipart/signed; protocol="application/pkcs7-signature"; micalg=sha1; boundary="----=_Part_0_1534588573.1191235195391"User-Agent:Jakarta Commons-HttpClient/3.0.1Host:10.53.1.46:10080Content-Length:12121URI:/b2b/as2/syncmdn------=_Part_0_1534588573.1191235195391Content-Type: text/plain; charset=ISO-8859-1; name=payload.txtContent-Transfer-Encoding: binaryContent-Disposition: attachment; filename=payload.txt111111111111111111111111111111111111------=_Part_0_1534588573.1191235195391Content-Type: application/pkcs7-signature; name=smime.p7s; smime-type=signed-dataContent-Transfer-Encoding: base64Content-Disposition: attachment; filename="smime.p7s"Content-Description: S/MIME Cryptographic SignatureD58aXhcU3LF8EV8zg2ExggGTMIIBjwIBATBXME8xCzAJBgNVBAYTAkVTMRIwEAYDVQQKEwlQYXJ0MDcxMDAxMTAzOTU1WjAjBgkqhkiG9w0BCQQxFgQUXjgKuDVTY32GmtdMoZipz9K+DnIwNAYJKoZIhvcNAQkPMScwJTAKBggqhkiG9w0DBzAOBggqhkiG9w0DAgICAIAwBwYFKw4DAgcwDQYJKoZIhvcNAQEBBQAEgYAz0qQekvfMDlbzzQJKCLkro6+70cvD8YQIftXU/v/x2xkK8HmtU7/TyMB1QH3+jQwlpaFeRrpZmuhP/HNagVoSwb7LIWBu8WvPuisLThRcsWnt6HdE0ZYltkjlSU2hsN/RSqfU+BuGSL1klmcA8AjzEGq7eioMKMh3SRbhJZpSQAAAAAAAAA==------=_Part_0_1534588573.1191235195391--
+~~~
+
+The above message is really nothing more than an HTTP request message.  You’ll notice the HTTP headers contain a few specific AS2 properties, the HTTP body in this case is unencrypted and there is a SHA1 digital signature to sign the unencrypted message.  This scenario works great when you have an external B2B trading partner who needs to forward a notification message and doesn’t expect a reply.  But what about guaranteed message delivery?  What if the sending B2B partner would like to know when the message is received and processed by the receiving system?  In this case, we introduce something called “Message Disposition Notification” or MDN.  An MDN is just a wordy acknowledgement.  We can request an MDN by specifying a “reply-to” address and “disposition-notification-options” like below:
+
+ ![Async AS2 Message](/images/as2_async.png)
+
+Now we have a way of (a)synchronously exchanging messages between Trading Partners, whilst guaranteeing message delivery without the need for a centralized broker.  A sending Trading Partner has confirmation their message has been received, valid and processed via an MDN transmission.  Take a look at the below synchronous reply:
+
+ ![Sync MDN Message](/images/as2_sync_invalid.png)
+
+
+You’ll notice an X-VerificationFailure:true header indicating the exchange could not be verified (probably because it cannot be authenticated).  This is great news as the receiving AS2 server can verify the digital signature immediately using a Hardware Security Module (HSM) for realtime performance, without forwarding the “dodgy” message to the backend system.  So effectively acting as a proxy.
+
+Here’s an example asynchronous MDN message :
+
+ ![Async MDN Message](/images/as2_mdn_async.png)
+
+This MDN originates from the backend receiving system, telling the sender there was a problem during the processing of the message.  But this is not a problem with the AS2 exchange - this was a problem with the business payload itself.  Therefore, we now have guaranteed message delivery and status of business payload processing.
+
+So there’s the semantics out of the way, what about Fuse?  And what is so difficult about building this out using a fluent API like Camel with EIP building blocks?  Let’s look a little closer at what’s required here:
+
+* An HTTP server
+* A repository to store digital keys + certs (JKS or HSM)
+* A repository to store the state of AS2 exchanges (for duplicate checking and auditing)
+* A repository to store Trading Partner credentials (XML file or Database)
+
+Life would be easier if there was a Camel component to kickstart the AS2 flow, but unfortunately there isn’t.  So let’s look at what options we have:
+
+### [OpenAS2](https://sourceforge.net/projects/openas2/)
+
+OpenAS2 is a java-based AS2 implementation. It is intended to be used as a server, configurable and supports a wide variety of signing and encryption algorithms.  Features of OpenAS2 include:
+
+* Conforms with AS2 1.1 protocol
+* Can run as a server daemon
+* Support for remote control
+* Configurable Signature and encryption
+* Supports compression
+* Configurable Synchronous and Asynchronous MDN
+* Supports HTTPS transport protocol
+* Supports filename preservation
+* Supports FDA Automatic Submissions Gateway using custom headers
+* Supports easy extending and adding of new modules via XML configuration
+
+Projects like OpenAS2 are great news, as they’re portable to Java-based applications like JBoss Fuse.  There are some challenges we need to overcome though, including:
+
+* No support for OSGi containers
+* Trading Partner information (credentials, keys, certs) are all managed via a large XML file.  Not ideal if you have hundreds or even thousands of Trading Partner credentials to maintain
+* Inflexible database support - H2 only
+
+OpenAS2 is great start for what we’re trying to achieve, but we need to look further afield.
+
+### [as2-server](https://github.com/phax/as2-server)
+
+Luckily, there’s another project which further extends OpenAS2.  It’s called as2-server / as2-lib and can be found [here](https://github.com/phax/as2-server).  The advantage of this project is:
+
+* Maven support
+* Some OSGi support
+* Replaces H2 database with MongoDB
+
+This project could easily be ported to run in Karaf, and potentially extended to offer Trading Partner profile storage on Mongo or some other relational database.  Hopefully in the future we might see a Camel component appear that takes all the goodness from these projects and provides a flexible, extensible and maintainable AS2 solution that we can use in the field.
+
+   

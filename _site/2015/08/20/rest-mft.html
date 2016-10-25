@@ -59,52 +59,53 @@
   <article class="post-content">
     <p>Managed File Transfer (MFT) is something proprietary Enterprise Application Integration (EAI) suites have been tackling for years. Instead of the usual data 
 transformation and business process automation tasks, these applications have done an amazing job at transporting and routing large files between you and your 
-trading partners. The typical use case I&#39;m talking about would be:</p>
+trading partners. The typical use case I’m talking about would be:</p>
 
 <ul>
-<li>I&#39;m a bank that needs to receive check images, ACH files, payroll and securely receive EDI AP files sent by my corporate customers</li>
-<li>My file size ranges from 100K to 100MB</li>
-<li>Typical daily volumes are 1000 - 100,000 files</li>
-<li>Files must be exchanged over the internet using SFTP, FTPS or HTTPS</li>
-<li>I want a simple, consistent interface that any trading partner can use.</li>
+  <li>I’m a bank that needs to receive check images, ACH files, payroll and securely receive EDI AP files sent by my corporate customers</li>
+  <li>My file size ranges from 100K to 100MB</li>
+  <li>Typical daily volumes are 1000 - 100,000 files</li>
+  <li>Files must be exchanged over the internet using SFTP, FTPS or HTTPS</li>
+  <li>I want a simple, consistent interface that any trading partner can use.</li>
 </ul>
 
 <p>Sounds simple right? WRONG!! We also need to consider:</p>
 
 <ol>
-<li>PKI. Issuing and revoking certificates is something managed by an external system but must integrate with your MFT solution</li>
-<li>Authorization. Typically an LDAP server is used to manage trading partner account credentials</li>
-<li>Integrity. The integrity of the file needs to be guaranteed from point-to-point</li>
-<li>Virus scanning. It&#39;s inevitable hackers will try to upload viruses to your new MFT solution and infiltrate your beloved trusted zone.</li>
-<li>Routing. Files need to be routed to their end destination using either filename-based, content-based routing or a combination of both</li>
-<li>Secure Proxy. It&#39;s important to prevent a direct connection into systems installed in your trusted zone. Therefore, a session-break mechanism needs to be considered in your solution.</li>
+  <li>PKI. Issuing and revoking certificates is something managed by an external system but must integrate with your MFT solution</li>
+  <li>Authorization. Typically an LDAP server is used to manage trading partner account credentials</li>
+  <li>Integrity. The integrity of the file needs to be guaranteed from point-to-point</li>
+  <li>Virus scanning. It’s inevitable hackers will try to upload viruses to your new MFT solution and infiltrate your beloved trusted zone.</li>
+  <li>Routing. Files need to be routed to their end destination using either filename-based, content-based routing or a combination of both</li>
+  <li>Secure Proxy. It’s important to prevent a direct connection into systems installed in your trusted zone. Therefore, a session-break mechanism needs to be considered in your solution.</li>
 </ol>
 
 <p>Here is what the typical MFT architecture looks like using your legacy EAI suite:</p>
 
-<p><img src="https://raw.githubusercontent.com/sigreen/sigreen.github.io/master/images/eai_secureProxy.png" alt="EAI MFT Architecture"></p>
+<p><img src="https://raw.githubusercontent.com/sigreen/sigreen.github.io/master/images/eai_secureProxy.png" alt="EAI MFT Architecture" /></p>
 
 <p>There is NOTHING wrong with the above architecture. It is proven technology which has endured 20 years of exchanging large files without issue. So what happens if we
-want a technology refresh, remove our proprietary software and use something more open-source like Fuse/Fabric/A-MQ? Well, we don&#39;t really need to change all that much
+want a technology refresh, remove our proprietary software and use something more open-source like Fuse/Fabric/A-MQ? Well, we don’t really need to change all that much
 in terms of architecture. In fact, the architecture looks surprisingly similar:</p>
 
-<p><img src="https://raw.githubusercontent.com/sigreen/sigreen.github.io/master/images/fuse_secureProxy.png" alt="Fuse MFT Architecture"></p>
+<p><img src="https://raw.githubusercontent.com/sigreen/sigreen.github.io/master/images/fuse_secureProxy.png" alt="Fuse MFT Architecture" /></p>
 
 <p>What I did was:</p>
 
 <ol>
-<li>In the DMZ, swap the Secure Proxy for an instance of Fuse. This instance can take care of receiving files over FTPS / SFTP / HTTPS whilst maintaining a session break
+  <li>In the DMZ, swap the Secure Proxy for an instance of Fuse. This instance can take care of receiving files over FTPS / SFTP / HTTPS whilst maintaining a session break
 from the Trusted Zone.</li>
-<li>In the Trusted Zone, replace the EAI suite with an instance of Fuse and A-MQ broker. Fuse can take care of the file routing to backend systems, plus additional user
-authentication if required. The A-MQ broker is used to safestore the file received from the DMZ once it&#39;s passed all the safety checks conducted by the outer layer Fuse
+  <li>In the Trusted Zone, replace the EAI suite with an instance of Fuse and A-MQ broker. Fuse can take care of the file routing to backend systems, plus additional user
+authentication if required. The A-MQ broker is used to safestore the file received from the DMZ once it’s passed all the safety checks conducted by the outer layer Fuse
 instance (integrity, authorization, virus checking etc).</li>
 </ol>
 
 <p>So what about the RESTFul bit? Our friends in the retail industry have been using specifications like AS2 and AS3 to securely transfer files over the internet for decades.
 Although these specs are secure and provide a valuable mechanism for (a)synchronous file exchange (with receipts), they are often overly complex and difficult for 
-Trading Partners to implement on the client side. A better technique I&#39;ve used is to exchange RESTFul messages over HTTPS. The raw payload body is inserted into the 
+Trading Partners to implement on the client side. A better technique I’ve used is to exchange RESTFul messages over HTTPS. The raw payload body is inserted into the 
 HTTP body, while metadata ends up in the HTTP headers (like digital signature, sender, receiver, destination etc).</p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">POST /cxf/file HTTP/1.1
+
+<pre><code class="language-Text">POST /cxf/file HTTP/1.1
 Host: localhost
 Connection: keep-alive
 fileName: README.md
@@ -116,12 +117,13 @@ Host: localhost:8183
 User-Agent: Apache-HttpClient/4.2.6 (java 1.5)
 
 My body goes here
-</code></pre></div>
-<p>To ensure file integrity, I exchange a shared secret with my Trading Partners. This secret is hashed together with the HTTP body using the HMAC-SHA256 algorithm, then base64 encoded to give us a 16-bit digital signature. That way, if someone messes with the file between point A and B, we&#39;ll know about it.</p>
+</code></pre>
+
+<p>To ensure file integrity, I exchange a shared secret with my Trading Partners. This secret is hashed together with the HTTP body using the HMAC-SHA256 algorithm, then base64 encoded to give us a 16-bit digital signature. That way, if someone messes with the file between point A and B, we’ll know about it.</p>
 
 <p>Authorization, authentication and encryption can be taken care of securely using PKI and SSL provided you have a PKI in place to manage this.</p>
 
-<p>Now for the fun part! I&#39;ve created a demo project for you to try which demonstrates the exchange of large files using this technique. Check it out <a href="https://github.com/sigreen/rest-mft-osgi">here</a> and 
+<p>Now for the fun part! I’ve created a demo project for you to try which demonstrates the exchange of large files using this technique. Check it out <a href="https://github.com/sigreen/rest-mft-osgi">here</a> and 
 let me know what you think.</p>
 
   </article>
